@@ -7,8 +7,9 @@ políticas de privacidade LGPD e paleta visual oficial Sustainable Tech.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # ============================================================================
 # Caminhos do Sistema de Arquivos
@@ -43,6 +44,25 @@ if isinstance(DB_PATH, Path) and DB_PATH.parent:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Diretórios raiz autorizados para conectores locais de arquivos (watched_directory)
+_env_connector_roots = os.getenv("ECOBI_CONNECTOR_ALLOWED_ROOTS") or os.getenv("CONNECTOR_ALLOWED_ROOTS")
+if _env_connector_roots:
+    CONNECTOR_ALLOWED_ROOTS: List[Path] = [
+        Path(p.strip()).resolve()
+        for p in re.split(r"[,;]", _env_connector_roots)
+        if p.strip()
+    ]
+else:
+    CONNECTOR_ALLOWED_ROOTS: List[Path] = [
+        (DATA_DIR / "watched").resolve(),
+    ]
+
+for _root in CONNECTOR_ALLOWED_ROOTS:
+    try:
+        _root.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
 
 # ============================================================================
