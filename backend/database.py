@@ -391,11 +391,81 @@ CREATE INDEX IF NOT EXISTS idx_lora_evaluations_sector ON lora_evaluations(secto
 CREATE INDEX IF NOT EXISTS idx_lora_evaluations_created_at ON lora_evaluations(created_at);
 """
 
+MIGRATION_005_SQL = """
+-- Suporte à persistência de avaliações experimentais LoRA inconclusivas (Fase 3)
+-- Recriação idempotente da tabela lora_evaluations permitindo NULL em métricas e novo status CHECK
+
+PRAGMA foreign_keys = OFF;
+
+CREATE TABLE IF NOT EXISTS lora_evaluations (
+    id TEXT PRIMARY KEY,
+    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    sector TEXT NOT NULL,
+    adapter_name TEXT NOT NULL,
+    base_model TEXT NOT NULL,
+    evaluation_status TEXT NOT NULL CHECK(evaluation_status IN ('APTO_EXPERIMENTAL', 'REPROVADO_QUALIDADE', 'BLOCKED_INSUFFICIENT_RAM', 'INCONCLUSIVO_RUNTIME_INDISPONIVEL')),
+    tool_accuracy_pct REAL,
+    domain_fidelity_score REAL,
+    deterministic_alignment_score REAL,
+    latency_ms REAL,
+    ram_used_mb REAL NOT NULL DEFAULT 0.0,
+    ram_peak_mb REAL NOT NULL DEFAULT 0.0,
+    metrics_json TEXT NOT NULL DEFAULT '{}',
+    limitations_json TEXT NOT NULL DEFAULT '[]',
+    executed_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL
+);
+
+DROP TABLE IF EXISTS lora_evaluations_new;
+
+CREATE TABLE lora_evaluations_new (
+    id TEXT PRIMARY KEY,
+    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    sector TEXT NOT NULL,
+    adapter_name TEXT NOT NULL,
+    base_model TEXT NOT NULL,
+    evaluation_status TEXT NOT NULL CHECK(evaluation_status IN ('APTO_EXPERIMENTAL', 'REPROVADO_QUALIDADE', 'BLOCKED_INSUFFICIENT_RAM', 'INCONCLUSIVO_RUNTIME_INDISPONIVEL')),
+    tool_accuracy_pct REAL,
+    domain_fidelity_score REAL,
+    deterministic_alignment_score REAL,
+    latency_ms REAL,
+    ram_used_mb REAL NOT NULL DEFAULT 0.0,
+    ram_peak_mb REAL NOT NULL DEFAULT 0.0,
+    metrics_json TEXT NOT NULL DEFAULT '{}',
+    limitations_json TEXT NOT NULL DEFAULT '[]',
+    executed_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL
+);
+
+INSERT INTO lora_evaluations_new (
+    id, project_id, sector, adapter_name, base_model,
+    evaluation_status, tool_accuracy_pct, domain_fidelity_score,
+    deterministic_alignment_score, latency_ms, ram_used_mb,
+    ram_peak_mb, metrics_json, limitations_json, executed_by, created_at
+)
+SELECT
+    id, project_id, sector, adapter_name, base_model,
+    evaluation_status, tool_accuracy_pct, domain_fidelity_score,
+    deterministic_alignment_score, latency_ms, ram_used_mb,
+    ram_peak_mb, metrics_json, limitations_json, executed_by, created_at
+FROM lora_evaluations;
+
+DROP TABLE lora_evaluations;
+
+ALTER TABLE lora_evaluations_new RENAME TO lora_evaluations;
+
+CREATE INDEX IF NOT EXISTS idx_lora_evaluations_sector ON lora_evaluations(sector);
+CREATE INDEX IF NOT EXISTS idx_lora_evaluations_created_at ON lora_evaluations(created_at);
+
+PRAGMA foreign_keys = ON;
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "001_initial_schema", MIGRATION_001_SQL),
     (2, "002_sessions_mappings_description", MIGRATION_002_SQL),
     (3, "003_phase2_drift_backups_benchmarks", MIGRATION_003_SQL),
     (4, "004_phase3_connectors_recalibration_lora", MIGRATION_004_SQL),
+    (5, "005_phase3_lora_evaluations_inconclusive", MIGRATION_005_SQL),
 ]
 
 # Fatores oficiais de referência deterministicamente cadastrados
@@ -2861,26 +2931,40 @@ def create_lora_evaluation(
     adapter_name: str,
     base_model: str,
     evaluation_status: str,
-    tool_accuracy_pct: float,
-    domain_fidelity_score: float,
-    deterministic_alignment_score: float,
-    latency_ms: float,
-    ram_used_mb: float,
-    ram_peak_mb: float,
-    metrics: Dict[str, Any],
-    limitations: List[str],
+    tool_accuracy_pct: Optional[float] = None,
+    domain_fidelity_score: Optional[float] = None,
+    deterministic_alignment_score: Optional[float] = None,
+    latency_ms: Optional[float] = None,
+    ram_used_mb: float = 0.0,
+    ram_peak_mb: float = 0.0,
+    metrics: Optional[Dict[str, Any]] = None,
+    limitations: Optional[List[str]] = None,
     project_id: Optional[str] = None,
     actor: str = "analyst",
     conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, Any]:
     """Persiste uma avaliação experimental local de adaptador LoRA setorial."""
-    if evaluation_status not in ("APTO_EXPERIMENTAL", "REPROVADO_QUALIDADE", "BLOCKED_INSUFFICIENT_RAM"):
+    if evaluation_status not in (
+        "APTO_EXPERIMENTAL",
+        "REPROVADO_QUALIDADE",
+        "BLOCKED_INSUFFICIENT_RAM",
+        "INCONCLUSIVO_RUNTIME_INDISPONIVEL",
+    ):
         raise ValueError(f"evaluation_status inválido: {evaluation_status}")
 
     eval_id = f"lora_{uuid.uuid4().hex[:12]}"
     now = utc_now_iso()
-    metrics_json = _to_json_str(metrics, "{}")
-    limits_json = _to_json_str(limitations, "[]")
+    metrics_dict = metrics if metrics is not None else {}
+    limitations_list = limitations if limitations is not None else []
+    metrics_json = _to_json_str(metrics_dict, "{}")
+    limits_json = _to_json_str(limitations_list, "[]")
+
+    val_tool_acc = float(tool_accuracy_pct) if tool_accuracy_pct is not None else None
+    val_domain_fid = float(domain_fidelity_score) if domain_fidelity_score is not None else None
+    val_det_align = float(deterministic_alignment_score) if deterministic_alignment_score is not None else None
+    val_lat_ms = float(latency_ms) if latency_ms is not None else None
+    val_ram_used = float(ram_used_mb) if ram_used_mb is not None else 0.0
+    val_ram_peak = float(ram_peak_mb) if ram_peak_mb is not None else 0.0
 
     def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
         with transaction(target_conn):
@@ -2901,12 +2985,12 @@ def create_lora_evaluation(
                     adapter_name,
                     base_model,
                     evaluation_status,
-                    float(tool_accuracy_pct),
-                    float(domain_fidelity_score),
-                    float(deterministic_alignment_score),
-                    float(latency_ms),
-                    float(ram_used_mb),
-                    float(ram_peak_mb),
+                    val_tool_acc,
+                    val_domain_fid,
+                    val_det_align,
+                    val_lat_ms,
+                    val_ram_used,
+                    val_ram_peak,
                     metrics_json,
                     limits_json,
                     actor,
@@ -2920,14 +3004,14 @@ def create_lora_evaluation(
             "adapter_name": adapter_name,
             "base_model": base_model,
             "evaluation_status": evaluation_status,
-            "tool_accuracy_pct": float(tool_accuracy_pct),
-            "domain_fidelity_score": float(domain_fidelity_score),
-            "deterministic_alignment_score": float(deterministic_alignment_score),
-            "latency_ms": float(latency_ms),
-            "ram_used_mb": float(ram_used_mb),
-            "ram_peak_mb": float(ram_peak_mb),
-            "metrics": metrics,
-            "limitations": limitations,
+            "tool_accuracy_pct": val_tool_acc,
+            "domain_fidelity_score": val_domain_fid,
+            "deterministic_alignment_score": val_det_align,
+            "latency_ms": val_lat_ms,
+            "ram_used_mb": val_ram_used,
+            "ram_peak_mb": val_ram_peak,
+            "metrics": metrics_dict,
+            "limitations": limitations_list,
             "executed_by": actor,
             "created_at": now,
         }
@@ -2971,6 +3055,14 @@ def list_lora_evaluations(
             d = dict(r)
             d["metrics"] = _from_json_str(d.get("metrics_json"), {})
             d["limitations"] = _from_json_str(d.get("limitations_json"), [])
+            for col in (
+                "tool_accuracy_pct",
+                "domain_fidelity_score",
+                "deterministic_alignment_score",
+                "latency_ms",
+            ):
+                if d.get(col) is None:
+                    d[col] = None
             results.append(d)
         return results
 
