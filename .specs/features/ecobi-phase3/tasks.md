@@ -1,7 +1,7 @@
 # EcoBI Intelligence — Fase 3 Tasks (`ecobi-phase3`)
 
 **Design**: `.specs/features/ecobi-phase3/design.md`  
-**Status**: Approved  
+**Status**: Completed & Verified (29/29 Pytest Passed)  
 **Build**: `.\.venv\Scripts\python.exe -m compileall -q backend samples tests`  
 **Run unit**: `.\.venv\Scripts\python.exe -m pytest -v`
 
@@ -38,8 +38,8 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `Engenheiro de Banco de Dados local #2`
 - **Requirement**: `ECOBI-17`, `ECOBI-18`, `ECOBI-19`
 - **Done when**:
-  - [ ] Migration 004 applies idempotently on existing and new SQLite databases
-  - [ ] All 4 tables enforce constraints and cascade cleanup on LGPD purge
+  - [x] Migration 004 applies idempotently on existing and new SQLite databases
+  - [x] All 4 tables enforce constraints and cascade cleanup on LGPD purge
 
 ### T30: Implement Read-Only Corporate Connectors and Incremental Ingestion Service
 - **What**: Create `backend/services/connectors.py` supporting `sqlite_external`, `postgresql_readonly`, and `watched_directory` with `validate_readonly_query()`, credential masking `mask_connector_config()`, incremental watermark filtering, SHA-256 change detection, schema validation, and automatic dataset ingestion via `data_quality.ingest_dataset_file`.
@@ -47,8 +47,8 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `Desenvolvedor Back-end + APIs e Integrações #2`
 - **Requirement**: `ECOBI-17`
 - **Done when**:
-  - [ ] Any write SQL (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `;`) is blocked with security audit log
-  - [ ] Incremental sync ingests only new rows/files beyond the stored watermark and returns `NO_CHANGES` when up to date
+  - [x] Any write SQL (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `;`) is blocked with security audit log
+  - [x] Incremental sync ingests only new rows/files beyond the stored watermark and returns `NO_CHANGES` when up to date
 
 ### T31: Implement Assisted Predictive Recalibration Service
 - **What**: Create `backend/services/recalibration.py` integrating `drift_monitor.py`, `predictive.py`, and `validation_engine.py` to propose a candidate recalibrated model when drift is detected, compare WAPE/MAE/RMSE against the incumbent model via chronological backtesting, and enforce explicit human approval (`admin`/`validator`) before promoting the candidate.
@@ -56,8 +56,8 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `Engenheiro de IA e Agentes #2`
 - **Requirement**: `ECOBI-18`
 - **Done when**:
-  - [ ] Candidate model is never promoted automatically upon proposal creation
-  - [ ] Candidate rejected by `Validation Engine` cannot be promoted (`BLOQUEADA_VALIDACAO` / `HTTP 422`)
+  - [x] Candidate model is never promoted automatically upon proposal creation
+  - [x] Candidate rejected by `Validation Engine` cannot be promoted (`BLOQUEADA_VALIDACAO` / `HTTP 422`)
 
 ### T32: Implement Experimental Local LoRA Adapter Evaluation Pipeline
 - **What**: Create `backend/services/lora_evaluator.py` evaluating sector-specific LoRA adapter profiles on top of `qwen3.5:4b` within the 8 GB RAM budget (`memory_guard`), measuring tool-calling accuracy, GHG Protocol domain fidelity, deterministic alignment score, latency, and `psutil` RSS memory, with controlled hardware blocking when RAM is insufficient.
@@ -65,8 +65,8 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `Engenheiro de IA e Agentes #2`
 - **Requirement**: `ECOBI-19`
 - **Done when**:
-  - [ ] Valid adapter within RAM budget is evaluated against deterministic reference and persisted in `lora_evaluations`
-  - [ ] Adapter exceeding RAM headroom is cleanly blocked (`BLOCKED_INSUFFICIENT_RAM`) without crashing
+  - [x] Valid adapter within RAM budget is evaluated against deterministic reference and persisted in `lora_evaluations`
+  - [x] Adapter exceeding RAM headroom is cleanly blocked (`BLOCKED_INSUFFICIENT_RAM`) without crashing
 
 ### T33: Expose Phase 3 REST Endpoints in FastAPI Orchestrator
 - **What**: Add routes `/api/projects/{project_id}/connectors`, `/api/projects/{project_id}/connectors/{connector_id}/sync`, `/api/projects/{project_id}/connectors/runs`, `/api/projects/{project_id}/recalibrations/propose`, `/api/projects/{project_id}/recalibrations`, `/api/projects/{project_id}/recalibrations/{proposal_id}/decide`, `/api/system/lora/evaluate`, and `/api/system/lora/evaluations` in `backend/main.py`.
@@ -74,7 +74,7 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `Desenvolvedor Back-end + APIs e Integrações #2`
 - **Requirement**: `ECOBI-17`, `ECOBI-18`, `ECOBI-19`
 - **Done when**:
-  - [ ] All 8 endpoints enforce RBAC permissions and return contracted schemas
+  - [x] All 8 endpoints enforce RBAC permissions and return contracted schemas
 
 ### T34: Integrate Phase 3 Controls in Sustainable Tech Web UI
 - **What**: Add interactive UI controls in `frontend/index.html` and `frontend/app.js` for Corporate Read-Only Connectors (in `view-quality`), Assisted Predictive Recalibration (in `view-predictive`), and Experimental LoRA Evaluation (in `view-audit`).
@@ -82,7 +82,7 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `UI/UX Designer + Desenvolvedor Front-end + Acessibilidade #2`
 - **Requirement**: `ECOBI-17`, `ECOBI-18`, `ECOBI-19`
 - **Done when**:
-  - [ ] Operators can trigger connector sync, recalibration proposal, and LoRA evaluation directly from the Sustainable Tech UI
+  - [x] Operators can trigger connector sync, recalibration proposal, and LoRA evaluation directly from the Sustainable Tech UI
 
 ### T35: Implement Automated Pytest Suite for Phase 3 (`C17` to `C20`)
 - **What**: Create `tests/test_phase3_connectors_recalibration_lora.py` covering read-only connectors & incremental ingestion (`C17`), connector write-attempt security blocking (`C18`), assisted predictive recalibration & promotion governance (`C19`), and experimental LoRA evaluation & RAM budget gate (`C20`).
@@ -90,7 +90,7 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `QA #2`
 - **Requirement**: `ECOBI-17`, `ECOBI-18`, `ECOBI-19`
 - **Done when**:
-  - [ ] All Phase 1 + Phase 2 + Phase 3 tests pass (`0 failed`)
+  - [x] All Phase 1 + Phase 2 + Phase 3 tests pass (`0 failed`)
 
 ### T36: Independent Review, Verification Report and Documentation Sync
 - **What**: Execute independent review, create `.specs/features/ecobi-phase3/verification.md`, and update `README.md`, `PLAN.md`, `.specs/STATE.md`, and Maestri note `"EcoBI Status"`.
@@ -98,7 +98,7 @@ T29 (DB Migration 004: data_connectors, connector_ingestion_runs, recalibration_
 - **Owner**: `Revisor de Código + Segurança + DevOps #2` + `maestro #2`
 - **Requirement**: `ECOBI-17`, `ECOBI-18`, `ECOBI-19`
 - **Done when**:
-  - [ ] Independent review approved and all atomic commits finalized
+  - [x] Independent review approved and all atomic commits finalized
 
 ---
 

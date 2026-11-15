@@ -42,12 +42,15 @@ EcoBI/
 │   ├── main.py                      # Aplicação FastAPI (rotas REST /api/* e servidor estático)
 │   └── services/
 │       ├── data_quality.py          # Ingestão em chunks, perfilamento de qualidade e mapeamento canônico
+│       ├── connectors.py            # Conectores somente-leitura (SQLite, PostgreSQL, Diretório) e ingestão incremental
 │       ├── analytics.py             # Motor determinístico Financeiro, ESG (Escopos 1, 2 e 3) e Benchmark Setorial
 │       ├── predictive.py            # Motor preditivo Scikit-learn com split temporal e backtesting
 │       ├── drift_monitor.py         # Monitoramento determinístico de Drift (PSI) e degradação de WAPE
+│       ├── recalibration.py         # Recalibração preditiva assistida (Incumbente vs Candidato vs Promovido)
 │       ├── simulation.py            # Simulador de cenários What-If com premissas explícitas
 │       ├── validation_engine.py     # Validation Engine determinístico (APROVADO / RESSALVAS / REJEITADO)
 │       ├── llm_agent.py             # Agente Ollama local (6 tools), benchmark 4B vs 9B e unload ocioso
+│       ├── lora_evaluator.py        # Pipeline local de avaliação experimental de adaptadores LoRA setoriais
 │       └── powerbi_generator.py     # Gerador e validador de pacotes Power BI PBIP/PBIR (.zip)
 ├── frontend/
 │   ├── index.html                   # 10 telas da interface Sustainable Tech
@@ -58,7 +61,7 @@ EcoBI/
 │   ├── ecobi_varejo_piloto.csv      # Série limpa de 24 meses para fluxo piloto completo
 │   ├── ecobi_dados_adversos.csv     # Dataset adverso (duplicatas, nulos, outliers, PII e injection)
 │   └── ecobi_curto_insuficiente.csv # Série curta (5 meses) para validação de bloqueio preditivo
-└── tests/                           # Suíte automatizada Pytest (25 testes cobrindo C1 a C16)
+└── tests/                           # Suíte automatizada Pytest (29 testes cobrindo C1 a C20)
 ```
 
 ---
@@ -99,13 +102,17 @@ Para validar a compilação e executar toda a suíte de testes unitários, de in
 ```
 
 ### Resultado Verificado da Suíte
-- **Total de testes**: `25 passed, 0 failed` (21 testes do MVP `C1`–`C12` + 4 testes da Fase 2 `C13`–`C16`).
-- **Consumo medido de RAM (`psutil`)**: `~228.54 MB RSS` (**2.79%** do orçamento máximo de `8192.0 MB`).
+- **Total de testes**: `29 passed, 0 failed` (21 testes do MVP `C1`–`C12` + 4 testes da Fase 2 `C13`–`C16` + 4 testes da Fase 3 `C17`–`C20`).
+- **Consumo medido de RAM (`psutil`)**: `~230.12 MB RSS` (**2.81%** do orçamento máximo de `8192.0 MB`).
 - **Funcionalidades da Fase 2 integradas**:
   - `POST /api/projects/{project_id}/drift/analyze` e `GET /api/projects/{project_id}/drift/reports` (Monitoramento de Drift PSI e degradação de WAPE).
   - `POST /api/system/model-benchmark`, `GET /api/system/model-benchmarks` e `POST /api/settings/model/unload` (Benchmark 4B vs 9B e liberação de RAM de modelos ociosos).
   - `POST /api/system/backups`, `GET /api/system/backups` e `POST /api/system/backups/{backup_id}/verify` (Backup online SQLite com assinatura HMAC-SHA256 e `PRAGMA integrity_check`).
   - `GET /api/users`, `POST /api/users` e `GET /api/sectors/benchmarks` (Gestão multiusuário RBAC e benchmarks de intensidade ESG para 6 setores econômicos).
+- **Funcionalidades da Fase 3 integradas**:
+  - `POST /api/projects/{project_id}/connectors`, `GET /api/projects/{project_id}/connectors`, `POST /api/projects/{project_id}/connectors/{connector_id}/sync` e `GET /api/projects/{project_id}/connectors/runs` (Conectores corporativos somente-leitura para SQLite externo, PostgreSQL Read-Only e diretórios monitorados com ingestão incremental e linhagem SHA-256).
+  - `POST /api/projects/{project_id}/recalibrations/propose`, `GET /api/projects/{project_id}/recalibrations` e `POST /api/projects/{project_id}/recalibrations/{proposal_id}/decide` (Recalibração preditiva assistida com separação estrita entre modelo incumbente, candidato e promovido).
+  - `POST /api/system/lora/evaluate` e `GET /api/system/lora/evaluations` (Pipeline local de avaliação experimental de adaptadores LoRA setoriais sob orçamento de 8 GB RAM).
 
 ---
 

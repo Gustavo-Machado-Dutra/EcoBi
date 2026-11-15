@@ -101,10 +101,10 @@
 ## Handoff
 
 - **Feature**: ecobi-phase3
-- **Phase / Task**: Em execução — Fase 3 do Roadmap (`T29` a `T36`: Conectores Somente-Leitura, Recalibração Preditiva Assistida e Avaliação Experimental LoRA)
-- **Completed**: MVP (`T1`–`T20`), Fase 2 (`T21`–`T28`) e Especificação/Design da Fase 3 (`.specs/features/ecobi-phase3/spec.md`, `design.md`, `tasks.md`)
-- **In-progress** (file:line): `T29` a `T36`
-- **Next step**: Implementação coordenada de `T29` a `T36`, execução da suíte Pytest completa e revisão independente
+- **Phase / Task**: Concluído (MVP `T1`–`T20` + Fase 2 `T21`–`T28` + Fase 3 `T29`–`T36` 100% implementados, integrados e verificados com 29/29 testes aprovados)
+- **Completed**: `T1` a `T36` (MVP completo + Fase 2 Drift/Benchmark/Backup/RBAC + Fase 3 Conectores Somente-Leitura, Recalibração Preditiva Assistida e Avaliação Experimental LoRA)
+- **In-progress** (file:line): none
+- **Next step**: Fase 4 do Roadmap (Empacotamento executável desktop Windows, agendamento local de rotinas periódicas de sincronização/backup e relatórios comparativos multi-projeto)
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/ecobi-phase3/*`
+- **Uncommitted files**: none
 - **Branch**: main

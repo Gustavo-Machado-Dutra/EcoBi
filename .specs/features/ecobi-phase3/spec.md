@@ -51,6 +51,6 @@ Com o MVP (`T1`–`T20`) e a Fase 2 (`T21`–`T28`) 100% concluídos e validados
 
 | Requirement ID | Description | Component | Status |
 |---|---|---|---|
-| `ECOBI-17` | Conectores Corporativos Somente-Leitura (`sqlite_external`, `postgresql_readonly`, `watched_directory`) com Ingestão Incremental e Linhagem SHA-256 | `backend/services/connectors.py`, `backend/database.py` | In Progress |
-| `ECOBI-18` | Recalibração Preditiva Assistida integrada ao `drift_monitor.py` e `validation_engine.py` com Governança de Promoção | `backend/services/recalibration.py`, `backend/database.py` | In Progress |
-| `ECOBI-19` | Pipeline Local de Avaliação Experimental de Adaptadores LoRA Setoriais sob Orçamento de 8 GB RAM | `backend/services/lora_evaluator.py`, `backend/memory_guard.py` | In Progress |
+| `ECOBI-17` | Conectores Corporativos Somente-Leitura (`sqlite_external`, `postgresql_readonly`, `watched_directory`) com Ingestão Incremental e Linhagem SHA-256 | `backend/services/connectors.py`, `backend/database.py` | Verified |
+| `ECOBI-18` | Recalibração Preditiva Assistida integrada ao `drift_monitor.py` e `validation_engine.py` com Governança de Promoção | `backend/services/recalibration.py`, `backend/database.py` | Verified |
+| `ECOBI-19` | Pipeline Local de Avaliação Experimental de Adaptadores LoRA Setoriais sob Orçamento de 8 GB RAM | `backend/services/lora_evaluator.py`, `backend/memory_guard.py` | Verified |
