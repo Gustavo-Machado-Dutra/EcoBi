@@ -2915,6 +2915,100 @@
         setInlineFeedback("lgpd-purge-feedback", `Erro no expurgo LGPD: ${err.message}`, true);
       }
     });
+
+    // Controles Fase 2: Monitoramento de Drift (PSI), Benchmark 4B vs 9B, Unload Ocioso e Backup SQLite
+    document.getElementById("btn-run-drift-analysis")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        setInlineFeedback("drift-analysis-feedback", "Selecione um projeto ativo antes de executar a análise de drift.", true);
+        return;
+      }
+      try {
+        setInlineFeedback("drift-analysis-feedback", "Calculando PSI e estabilidade distributiva...");
+        const res = await apiRequest(`/api/projects/${encodeURIComponent(state.activeProjectId)}/drift/analyze`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        const tbody = document.getElementById("drift-features-tbody");
+        if (tbody && res.feature_drift) {
+          const entries = Object.entries(res.feature_drift);
+          if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">Nenhuma feature numérica monitorada encontrada.</td></tr>';
+          } else {
+            tbody.innerHTML = entries
+              .map(
+                ([col, d]) => `
+                <tr>
+                  <td><code>${escapeHtml(col)}</code></td>
+                  <td>${formatNumber(d.baseline_mean, 2)}</td>
+                  <td>${formatNumber(d.target_mean, 2)}</td>
+                  <td>${formatNumber(d.mean_shift_pct, 2)}%</td>
+                  <td><strong>${formatNumber(d.psi, 4)}</strong></td>
+                  <td><span class="status-badge">${escapeHtml(d.status)}</span></td>
+                </tr>`
+              )
+              .join("");
+          }
+        }
+        setInlineFeedback(
+          "drift-analysis-feedback",
+          `Diagnóstico de Drift: ${res.drift_status} (PSI Médio: ${formatNumber(res.overall_psi, 4)} | PSI Máx: ${formatNumber(res.max_psi, 4)}).`
+        );
+        showToast(`Análise de Drift concluída: ${res.drift_status}`);
+      } catch (err) {
+        setInlineFeedback("drift-analysis-feedback", `Erro na análise de drift: ${err.message}`, true);
+      }
+    });
+
+    document.getElementById("btn-unload-model-idle")?.addEventListener("click", async () => {
+      try {
+        const res = await apiRequest("/api/settings/model/unload", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        setInlineFeedback(
+          "model-settings-feedback",
+          `${res.detail} (RSS: ${res.memory?.ram_after_mb ?? "--"} MB).`
+        );
+        await loadMemoryStatus();
+      } catch (err) {
+        setInlineFeedback("model-settings-feedback", `Erro ao descarregar modelo: ${err.message}`, true);
+      }
+    });
+
+    document.getElementById("btn-run-model-benchmark")?.addEventListener("click", async () => {
+      try {
+        setInlineFeedback("model-settings-feedback", "Executando benchmark comparativo 4B vs 9B...");
+        const res = await apiRequest("/api/system/model-benchmark", {
+          method: "POST",
+          body: JSON.stringify({ project_id: state.activeProjectId || null }),
+        });
+        const items = res.benchmarks || [];
+        const summary = items
+          .map((b) => `${b.model_name}: Acurácia ${b.tool_accuracy_pct}% (${b.latency_ms} ms, Elegível: ${b.eligible ? "Sim" : "Não"})`)
+          .join(" | ");
+        setInlineFeedback("model-settings-feedback", `Benchmark concluído: ${summary}`);
+        showToast("Benchmark comparativo 4B vs 9B registrado na auditoria.");
+        await loadAuditLogs(true);
+      } catch (err) {
+        setInlineFeedback("model-settings-feedback", `Erro no benchmark: ${err.message}`, true);
+      }
+    });
+
+    document.getElementById("btn-create-sqlite-backup")?.addEventListener("click", async () => {
+      try {
+        const res = await apiRequest("/api/system/backups", {
+          method: "POST",
+        });
+        setInlineFeedback(
+          "lgpd-purge-feedback",
+          `Backup íntegro criado: ${res.backup_filename} (SHA-256: ${String(res.sha256_hash).slice(0, 16)}...).`
+        );
+        showToast("Snapshot de backup SQLite HMAC-SHA256 criado e verificado.");
+        await loadAuditLogs(true);
+      } catch (err) {
+        setInlineFeedback("lgpd-purge-feedback", `Erro ao criar backup SQLite: ${err.message}`, true);
+      }
+    });
   }
 
   async function initApp() {

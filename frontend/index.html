@@ -1149,6 +1149,39 @@
               </div>
             </article>
           </div>
+
+          <!-- Painel Fase 2: Monitoramento de Drift e Degradação Preditiva (PSI & WAPE) -->
+          <article class="surface-panel" id="predictive-drift-panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Monitoramento de Drift &amp; Degradação Preditiva (PSI)</h2>
+                <p class="panel-subtitle"><code>POST /api/projects/{id}/drift/analyze</code> · Avalia deriva estatística entre janelas temporais e estabilidade do modelo.</p>
+              </div>
+              <div class="panel-header-actions">
+                <button type="button" id="btn-run-drift-analysis" class="btn btn-secondary btn-sm">Executar Análise de Drift (PSI)</button>
+              </div>
+            </div>
+            <div id="drift-analysis-feedback" class="inline-feedback" aria-live="polite"></div>
+            <div class="table-responsive">
+              <table class="data-table" id="drift-features-table" aria-label="Relatório de estabilidade populacional PSI por variável">
+                <thead>
+                  <tr>
+                    <th>Variável Monitorada</th>
+                    <th>Média Referência</th>
+                    <th>Média Recente</th>
+                    <th>Desvio Média (%)</th>
+                    <th>PSI Calculado</th>
+                    <th>Status de Drift</th>
+                  </tr>
+                </thead>
+                <tbody id="drift-features-tbody">
+                  <tr>
+                    <td colspan="6" class="empty-cell">Clique em "Executar Análise de Drift (PSI)" para auditar a estabilidade distributiva e preditiva do projeto.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
         </section>
 
         <!-- ================================================================
@@ -1553,6 +1586,10 @@
                 </div>
                 <div id="model-settings-feedback" class="inline-feedback" aria-live="polite"></div>
                 <button type="submit" id="btn-save-model-setting" class="btn btn-primary btn-block">Aplicar Modelo no Ollama</button>
+                <div class="form-row-2">
+                  <button type="button" id="btn-unload-model-idle" class="btn btn-secondary btn-sm">Descarregar da RAM (Idle)</button>
+                  <button type="button" id="btn-run-model-benchmark" class="btn btn-secondary btn-sm">Benchmark 4B vs 9B</button>
+                </div>
               </form>
             </article>
 
@@ -1608,6 +1645,9 @@
                 <div id="lgpd-purge-feedback" class="inline-feedback" aria-live="polite"></div>
                 <button type="submit" id="btn-lgpd-purge" class="btn btn-terracotta btn-block">
                   <span>Executar Expurgo de Dados Expirados (LGPD)</span>
+                </button>
+                <button type="button" id="btn-create-sqlite-backup" class="btn btn-secondary btn-block">
+                  <span>Criar Backup Local SQLite (HMAC-SHA256)</span>
                 </button>
               </form>
             </article>
