@@ -3073,11 +3073,46 @@
           method: "POST",
           body: JSON.stringify({ sector: sectorName, project_id: state.activeProjectId || null }),
         });
+        const status = String(res.evaluation_status || "DESCONHECIDO");
+        const isInconclusive = status.startsWith("INCONCLUSIVO");
+        const isBlockedRam = status === "BLOCKED_INSUFFICIENT_RAM";
+        const isAlert = isInconclusive || isBlockedRam;
+        const fmtPct = (v) =>
+          v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)) ? `${v}%` : "n/d";
+        const fmtVal = (v, unit) =>
+          v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)) ? `${v} ${unit}` : "n/d";
+        const toolAcc = fmtPct(res.tool_accuracy_pct);
+        const domainFid = fmtPct(res.domain_fidelity_score);
+        const alignScore = fmtPct(res.deterministic_alignment_score);
+        const latencyText = fmtVal(res.latency_ms, "ms");
+        const ramPeakText = fmtVal(res.ram_peak_mb, "MB");
+        const metrics = res.metrics || {};
+        const refParts = [];
+        if (metrics.base_model_reference_accuracy_pct !== null && metrics.base_model_reference_accuracy_pct !== undefined) {
+          refParts.push(`Ref. Determinística=${fmtPct(metrics.base_model_reference_accuracy_pct)}`);
+        }
+        if (metrics.reference_agreement_pct !== null && metrics.reference_agreement_pct !== undefined) {
+          refParts.push(`Concordância=${fmtPct(metrics.reference_agreement_pct)}`);
+        }
+        const refText = refParts.length ? ` | ${refParts.join(" | ")}` : "";
+        const limitationReason =
+          isAlert && Array.isArray(res.limitations) && res.limitations[0]
+            ? ` | Motivo: ${res.limitations[0]}`
+            : "";
         setInlineFeedback(
           "model-settings-feedback",
-          `LoRA ${res.adapter_name} (${res.sector}): ${res.evaluation_status} | Tool Acc=${res.tool_accuracy_pct}% | Alinhamento=${res.deterministic_alignment_score}% | RAM Pico=${res.ram_peak_mb} MB.`
+          `LoRA ${res.adapter_name} (${res.sector}): ${status} | Tool Acc=${toolAcc} | Fidelidade=${domainFid} | Alinhamento=${alignScore}${refText} | Latência=${latencyText} | RAM Pico=${ramPeakText}.${limitationReason}`,
+          isAlert
         );
-        showToast(`Avaliação experimental LoRA concluída: ${res.evaluation_status}`);
+        if (isInconclusive) {
+          showToast(`Avaliação experimental LoRA inconclusiva: ${status}`, true);
+        } else if (isBlockedRam) {
+          showToast(`Avaliação experimental LoRA bloqueada por limite de RAM: ${status}`, true);
+        } else if (status === "REPROVADO_QUALIDADE") {
+          showToast(`Avaliação experimental LoRA reprovada: ${status}`, true);
+        } else {
+          showToast(`Avaliação experimental LoRA concluída: ${status}`);
+        }
         await loadAuditLogs(true);
       } catch (err) {
         setInlineFeedback("model-settings-feedback", `Erro na avaliação LoRA: ${err.message}`, true);
