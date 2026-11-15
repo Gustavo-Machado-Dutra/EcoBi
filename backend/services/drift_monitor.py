@@ -211,7 +211,7 @@ def run_drift_analysis(
     if resolved_analysis_id:
         an_rec = database.get_analysis(resolved_analysis_id)
         if an_rec and an_rec.get("project_id") == project_id:
-            res_obj = an_rec.get("result") or {}
+            res_obj = an_rec.get("result") or database._from_json_str(an_rec.get("result_json"), {}) or {}
             metrics = res_obj.get("metrics") or {}
             model_wape = float(metrics.get("wape", 0.0)) * 100.0 if float(metrics.get("wape", 0.0)) <= 1.0 else float(metrics.get("wape", 0.0))
             base_wape = float(metrics.get("baseline_wape", 0.0)) * 100.0 if float(metrics.get("baseline_wape", 0.0)) <= 1.0 else float(metrics.get("baseline_wape", 0.0))

@@ -303,10 +303,99 @@ CREATE TABLE IF NOT EXISTS system_backups (
 CREATE INDEX IF NOT EXISTS idx_system_backups_created_at ON system_backups(created_at);
 """
 
+MIGRATION_004_SQL = """
+-- Conectores corporativos somente-leitura com marca d'água incremental (Fase 3)
+CREATE TABLE IF NOT EXISTS data_connectors (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    connector_type TEXT NOT NULL CHECK(connector_type IN ('sqlite_external', 'postgresql_readonly', 'watched_directory')),
+    config_json TEXT NOT NULL DEFAULT '{}',
+    query_or_table TEXT NOT NULL DEFAULT '',
+    watermark_column TEXT DEFAULT 'periodo',
+    last_watermark_value TEXT,
+    last_source_sha256 TEXT,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'PAUSED', 'ERROR')),
+    created_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_data_connectors_project_id ON data_connectors(project_id);
+
+-- Histórico auditável de execuções de ingestão incremental dos conectores (Fase 3)
+CREATE TABLE IF NOT EXISTS connector_ingestion_runs (
+    id TEXT PRIMARY KEY,
+    connector_id TEXT NOT NULL REFERENCES data_connectors(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    run_status TEXT NOT NULL CHECK(run_status IN ('SUCCESS', 'NO_CHANGES', 'SCHEMA_ERROR', 'SECURITY_BLOCKED', 'FAILED')),
+    rows_discovered INTEGER NOT NULL DEFAULT 0,
+    rows_ingested INTEGER NOT NULL DEFAULT 0,
+    source_sha256 TEXT,
+    previous_watermark TEXT,
+    new_watermark TEXT,
+    schema_validation_json TEXT NOT NULL DEFAULT '{}',
+    error_message TEXT,
+    executed_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_connector_runs_connector_id ON connector_ingestion_runs(connector_id);
+CREATE INDEX IF NOT EXISTS idx_connector_runs_project_id ON connector_ingestion_runs(project_id);
+
+-- Propostas controladas de recalibração preditiva assistida (Fase 3)
+CREATE TABLE IF NOT EXISTS recalibration_proposals (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    drift_report_id TEXT REFERENCES drift_reports(id) ON DELETE SET NULL,
+    dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    target_column TEXT NOT NULL,
+    incumbent_analysis_id TEXT REFERENCES analyses(id) ON DELETE SET NULL,
+    candidate_analysis_id TEXT REFERENCES analyses(id) ON DELETE SET NULL,
+    candidate_validation_id TEXT REFERENCES validations(id) ON DELETE SET NULL,
+    incumbent_wape REAL NOT NULL DEFAULT 0.0,
+    candidate_wape REAL NOT NULL DEFAULT 0.0,
+    wape_improvement_pct REAL NOT NULL DEFAULT 0.0,
+    validation_status TEXT NOT NULL,
+    governance_status TEXT NOT NULL CHECK(governance_status IN ('PROPOSTA_PENDENTE', 'PROMOVIDO_APROVADO', 'REJEITADO_GOVERNANCA', 'BLOQUEADA_VALIDACAO')),
+    comparison_report_json TEXT NOT NULL DEFAULT '{}',
+    decided_by TEXT,
+    decided_at TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_recalibration_proposals_project_id ON recalibration_proposals(project_id);
+
+-- Avaliações experimentais locais de adaptadores LoRA setoriais (Fase 3)
+CREATE TABLE IF NOT EXISTS lora_evaluations (
+    id TEXT PRIMARY KEY,
+    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    sector TEXT NOT NULL,
+    adapter_name TEXT NOT NULL,
+    base_model TEXT NOT NULL,
+    evaluation_status TEXT NOT NULL CHECK(evaluation_status IN ('APTO_EXPERIMENTAL', 'REPROVADO_QUALIDADE', 'BLOCKED_INSUFFICIENT_RAM')),
+    tool_accuracy_pct REAL NOT NULL DEFAULT 0.0,
+    domain_fidelity_score REAL NOT NULL DEFAULT 0.0,
+    deterministic_alignment_score REAL NOT NULL DEFAULT 0.0,
+    latency_ms REAL NOT NULL DEFAULT 0.0,
+    ram_used_mb REAL NOT NULL DEFAULT 0.0,
+    ram_peak_mb REAL NOT NULL DEFAULT 0.0,
+    metrics_json TEXT NOT NULL DEFAULT '{}',
+    limitations_json TEXT NOT NULL DEFAULT '[]',
+    executed_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_lora_evaluations_sector ON lora_evaluations(sector);
+CREATE INDEX IF NOT EXISTS idx_lora_evaluations_created_at ON lora_evaluations(created_at);
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "001_initial_schema", MIGRATION_001_SQL),
     (2, "002_sessions_mappings_description", MIGRATION_002_SQL),
     (3, "003_phase2_drift_backups_benchmarks", MIGRATION_003_SQL),
+    (4, "004_phase3_connectors_recalibration_lora", MIGRATION_004_SQL),
 ]
 
 # Fatores oficiais de referência deterministicamente cadastrados
@@ -1824,6 +1913,10 @@ def purge_expired_project_data(
                         pass
 
             with transaction(target_conn):
+                target_conn.execute("DELETE FROM connector_ingestion_runs WHERE project_id = ?;", (pid,))
+                target_conn.execute("DELETE FROM data_connectors WHERE project_id = ?;", (pid,))
+                target_conn.execute("DELETE FROM recalibration_proposals WHERE project_id = ?;", (pid,))
+                target_conn.execute("DELETE FROM lora_evaluations WHERE project_id = ?;", (pid,))
                 target_conn.execute("DELETE FROM drift_reports WHERE project_id = ?;", (pid,))
                 target_conn.execute("DELETE FROM model_benchmarks WHERE project_id = ?;", (pid,))
                 stats["validations"] += target_conn.execute(
@@ -2346,4 +2439,544 @@ def create_user_account(
         return _execute(conn)
     with get_db_context() as c:
         return _execute(c)
+
+
+# ============================================================================
+# Fase 3: Conectores Somente-Leitura, Recalibração Preditiva e Avaliação LoRA
+# ============================================================================
+
+def create_data_connector(
+    project_id: str,
+    name: str,
+    connector_type: str,
+    sanitized_config: Dict[str, Any],
+    query_or_table: str = "",
+    watermark_column: Optional[str] = "periodo",
+    actor: str = "analyst",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Registra um conector corporativo somente-leitura no projeto (com credenciais mascaradas)."""
+    if connector_type not in ("sqlite_external", "postgresql_readonly", "watched_directory"):
+        raise ValueError(f"connector_type inválido: {connector_type}")
+
+    connector_id = f"conn_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    cfg_json = _to_json_str(sanitized_config, "{}")
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO data_connectors (
+                    id, project_id, name, connector_type, config_json,
+                    query_or_table, watermark_column, last_watermark_value,
+                    last_source_sha256, status, created_by, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'ACTIVE', ?, ?, ?);
+                """,
+                (
+                    connector_id,
+                    project_id,
+                    name.strip(),
+                    connector_type,
+                    cfg_json,
+                    query_or_table.strip(),
+                    watermark_column or "periodo",
+                    actor,
+                    now,
+                    now,
+                ),
+            )
+            log_audit(
+                actor=actor,
+                action="DATA_CONNECTOR_CREATED",
+                resource_type="data_connector",
+                resource_id=connector_id,
+                project_id=project_id,
+                details={
+                    "name": name.strip(),
+                    "connector_type": connector_type,
+                    "watermark_column": watermark_column or "periodo",
+                },
+                conn=target_conn,
+            )
+        return {
+            "id": connector_id,
+            "project_id": project_id,
+            "name": name.strip(),
+            "connector_type": connector_type,
+            "config": sanitized_config,
+            "query_or_table": query_or_table.strip(),
+            "watermark_column": watermark_column or "periodo",
+            "last_watermark_value": None,
+            "last_source_sha256": None,
+            "status": "ACTIVE",
+            "created_by": actor,
+            "created_at": now,
+            "updated_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def get_data_connector(
+    connector_id: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Recupera um conector pelo ID."""
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        row = target_conn.execute(
+            "SELECT * FROM data_connectors WHERE id = ?;",
+            (connector_id,),
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["config"] = _from_json_str(d.get("config_json"), {})
+        return d
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_data_connectors(
+    project_id: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista os conectores corporativos de um projeto."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = target_conn.execute(
+            "SELECT * FROM data_connectors WHERE project_id = ? ORDER BY created_at DESC;",
+            (project_id,),
+        ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["config"] = _from_json_str(d.get("config_json"), {})
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def update_connector_sync_state(
+    connector_id: str,
+    last_watermark_value: Optional[str],
+    last_source_sha256: Optional[str],
+    status: str = "ACTIVE",
+    conn: Optional[sqlite3.Connection] = None,
+) -> None:
+    """Atualiza a marca d'água incremental e o hash SHA-256 da fonte após sincronização."""
+    now = utc_now_iso()
+
+    def _execute(target_conn: sqlite3.Connection) -> None:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                UPDATE data_connectors
+                SET last_watermark_value = ?, last_source_sha256 = ?, status = ?, updated_at = ?
+                WHERE id = ?;
+                """,
+                (last_watermark_value, last_source_sha256, status, now, connector_id),
+            )
+
+    if conn is not None:
+        _execute(conn)
+        return
+    with get_db_context() as c:
+        _execute(c)
+
+
+def create_connector_ingestion_run(
+    connector_id: str,
+    project_id: str,
+    run_status: str,
+    rows_discovered: int = 0,
+    rows_ingested: int = 0,
+    dataset_id: Optional[str] = None,
+    source_sha256: Optional[str] = None,
+    previous_watermark: Optional[str] = None,
+    new_watermark: Optional[str] = None,
+    schema_validation: Optional[Dict[str, Any]] = None,
+    error_message: Optional[str] = None,
+    actor: str = "analyst",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Registra uma execução de ingestão incremental do conector."""
+    if run_status not in ("SUCCESS", "NO_CHANGES", "SCHEMA_ERROR", "SECURITY_BLOCKED", "FAILED"):
+        raise ValueError(f"run_status inválido: {run_status}")
+
+    run_id = f"run_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    schema_json = _to_json_str(schema_validation, "{}")
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO connector_ingestion_runs (
+                    id, connector_id, project_id, dataset_id, run_status,
+                    rows_discovered, rows_ingested, source_sha256,
+                    previous_watermark, new_watermark, schema_validation_json,
+                    error_message, executed_by, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    run_id,
+                    connector_id,
+                    project_id,
+                    dataset_id,
+                    run_status,
+                    int(rows_discovered),
+                    int(rows_ingested),
+                    source_sha256,
+                    previous_watermark,
+                    new_watermark,
+                    schema_json,
+                    error_message,
+                    actor,
+                    now,
+                ),
+            )
+        return {
+            "id": run_id,
+            "connector_id": connector_id,
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "run_status": run_status,
+            "rows_discovered": int(rows_discovered),
+            "rows_ingested": int(rows_ingested),
+            "source_sha256": source_sha256,
+            "previous_watermark": previous_watermark,
+            "new_watermark": new_watermark,
+            "schema_validation": schema_validation or {},
+            "error_message": error_message,
+            "executed_by": actor,
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_connector_ingestion_runs(
+    project_id: str,
+    connector_id: Optional[str] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista execuções de ingestão de conectores de um projeto."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        if connector_id:
+            rows = target_conn.execute(
+                "SELECT * FROM connector_ingestion_runs WHERE project_id = ? AND connector_id = ? ORDER BY created_at DESC;",
+                (project_id, connector_id),
+            ).fetchall()
+        else:
+            rows = target_conn.execute(
+                "SELECT * FROM connector_ingestion_runs WHERE project_id = ? ORDER BY created_at DESC;",
+                (project_id,),
+            ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["schema_validation"] = _from_json_str(d.get("schema_validation_json"), {})
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def create_recalibration_proposal(
+    project_id: str,
+    target_column: str,
+    incumbent_wape: float,
+    candidate_wape: float,
+    wape_improvement_pct: float,
+    validation_status: str,
+    governance_status: str,
+    comparison_report: Dict[str, Any],
+    drift_report_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+    incumbent_analysis_id: Optional[str] = None,
+    candidate_analysis_id: Optional[str] = None,
+    candidate_validation_id: Optional[str] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Registra uma proposta controlada de recalibração preditiva sem autopromoção."""
+    if governance_status not in ("PROPOSTA_PENDENTE", "PROMOVIDO_APROVADO", "REJEITADO_GOVERNANCA", "BLOQUEADA_VALIDACAO"):
+        raise ValueError(f"governance_status inválido: {governance_status}")
+
+    prop_id = f"recal_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    comp_json = _to_json_str(comparison_report, "{}")
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO recalibration_proposals (
+                    id, project_id, drift_report_id, dataset_id, target_column,
+                    incumbent_analysis_id, candidate_analysis_id, candidate_validation_id,
+                    incumbent_wape, candidate_wape, wape_improvement_pct,
+                    validation_status, governance_status, comparison_report_json,
+                    decided_by, decided_at, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?);
+                """,
+                (
+                    prop_id,
+                    project_id,
+                    drift_report_id,
+                    dataset_id,
+                    target_column,
+                    incumbent_analysis_id,
+                    candidate_analysis_id,
+                    candidate_validation_id,
+                    float(incumbent_wape),
+                    float(candidate_wape),
+                    float(wape_improvement_pct),
+                    validation_status,
+                    governance_status,
+                    comp_json,
+                    now,
+                ),
+            )
+        return {
+            "id": prop_id,
+            "project_id": project_id,
+            "drift_report_id": drift_report_id,
+            "dataset_id": dataset_id,
+            "target_column": target_column,
+            "incumbent_analysis_id": incumbent_analysis_id,
+            "candidate_analysis_id": candidate_analysis_id,
+            "candidate_validation_id": candidate_validation_id,
+            "incumbent_wape": float(incumbent_wape),
+            "candidate_wape": float(candidate_wape),
+            "wape_improvement_pct": float(wape_improvement_pct),
+            "validation_status": validation_status,
+            "governance_status": governance_status,
+            "comparison_report": comparison_report,
+            "decided_by": None,
+            "decided_at": None,
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def get_recalibration_proposal(
+    proposal_id: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Recupera uma proposta de recalibração pelo ID."""
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        row = target_conn.execute(
+            "SELECT * FROM recalibration_proposals WHERE id = ?;",
+            (proposal_id,),
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["comparison_report"] = _from_json_str(d.get("comparison_report_json"), {})
+        return d
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_recalibration_proposals(
+    project_id: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista propostas de recalibração preditiva de um projeto."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = target_conn.execute(
+            "SELECT * FROM recalibration_proposals WHERE project_id = ? ORDER BY created_at DESC;",
+            (project_id,),
+        ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["comparison_report"] = _from_json_str(d.get("comparison_report_json"), {})
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def update_recalibration_decision(
+    proposal_id: str,
+    governance_status: str,
+    decided_by: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Registra a decisão de governança humana (PROMOVIDO_APROVADO ou REJEITADO_GOVERNANCA) em uma proposta."""
+    if governance_status not in ("PROMOVIDO_APROVADO", "REJEITADO_GOVERNANCA", "BLOQUEADA_VALIDACAO"):
+        raise ValueError(f"governance_status inválido: {governance_status}")
+
+    now = utc_now_iso()
+
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                UPDATE recalibration_proposals
+                SET governance_status = ?, decided_by = ?, decided_at = ?
+                WHERE id = ?;
+                """,
+                (governance_status, decided_by, now, proposal_id),
+            )
+        return get_recalibration_proposal(proposal_id, conn=target_conn)
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def create_lora_evaluation(
+    sector: str,
+    adapter_name: str,
+    base_model: str,
+    evaluation_status: str,
+    tool_accuracy_pct: float,
+    domain_fidelity_score: float,
+    deterministic_alignment_score: float,
+    latency_ms: float,
+    ram_used_mb: float,
+    ram_peak_mb: float,
+    metrics: Dict[str, Any],
+    limitations: List[str],
+    project_id: Optional[str] = None,
+    actor: str = "analyst",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Persiste uma avaliação experimental local de adaptador LoRA setorial."""
+    if evaluation_status not in ("APTO_EXPERIMENTAL", "REPROVADO_QUALIDADE", "BLOCKED_INSUFFICIENT_RAM"):
+        raise ValueError(f"evaluation_status inválido: {evaluation_status}")
+
+    eval_id = f"lora_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    metrics_json = _to_json_str(metrics, "{}")
+    limits_json = _to_json_str(limitations, "[]")
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO lora_evaluations (
+                    id, project_id, sector, adapter_name, base_model,
+                    evaluation_status, tool_accuracy_pct, domain_fidelity_score,
+                    deterministic_alignment_score, latency_ms, ram_used_mb,
+                    ram_peak_mb, metrics_json, limitations_json, executed_by, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    eval_id,
+                    project_id,
+                    sector,
+                    adapter_name,
+                    base_model,
+                    evaluation_status,
+                    float(tool_accuracy_pct),
+                    float(domain_fidelity_score),
+                    float(deterministic_alignment_score),
+                    float(latency_ms),
+                    float(ram_used_mb),
+                    float(ram_peak_mb),
+                    metrics_json,
+                    limits_json,
+                    actor,
+                    now,
+                ),
+            )
+        return {
+            "id": eval_id,
+            "project_id": project_id,
+            "sector": sector,
+            "adapter_name": adapter_name,
+            "base_model": base_model,
+            "evaluation_status": evaluation_status,
+            "tool_accuracy_pct": float(tool_accuracy_pct),
+            "domain_fidelity_score": float(domain_fidelity_score),
+            "deterministic_alignment_score": float(deterministic_alignment_score),
+            "latency_ms": float(latency_ms),
+            "ram_used_mb": float(ram_used_mb),
+            "ram_peak_mb": float(ram_peak_mb),
+            "metrics": metrics,
+            "limitations": limitations,
+            "executed_by": actor,
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_lora_evaluations(
+    project_id: Optional[str] = None,
+    sector: Optional[str] = None,
+    limit: int = 50,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista avaliações experimentais de adaptadores LoRA registradas."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        if project_id and sector:
+            rows = target_conn.execute(
+                "SELECT * FROM lora_evaluations WHERE project_id = ? AND sector = ? ORDER BY created_at DESC LIMIT ?;",
+                (project_id, sector, limit),
+            ).fetchall()
+        elif project_id:
+            rows = target_conn.execute(
+                "SELECT * FROM lora_evaluations WHERE project_id = ? ORDER BY created_at DESC LIMIT ?;",
+                (project_id, limit),
+            ).fetchall()
+        elif sector:
+            rows = target_conn.execute(
+                "SELECT * FROM lora_evaluations WHERE sector = ? ORDER BY created_at DESC LIMIT ?;",
+                (sector, limit),
+            ).fetchall()
+        else:
+            rows = target_conn.execute(
+                "SELECT * FROM lora_evaluations ORDER BY created_at DESC LIMIT ?;",
+                (limit,),
+            ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["metrics"] = _from_json_str(d.get("metrics_json"), {})
+            d["limitations"] = _from_json_str(d.get("limitations_json"), [])
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
 

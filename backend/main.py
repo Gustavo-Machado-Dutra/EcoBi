@@ -39,11 +39,14 @@ from pydantic import BaseModel, Field
 from backend import config, database, memory_guard, security
 from backend.services import (
     analytics,
+    connectors,
     data_quality,
     drift_monitor,
     llm_agent,
+    lora_evaluator,
     powerbi_generator,
     predictive,
+    recalibration,
     simulation,
     validation_engine,
 )
@@ -1322,6 +1325,218 @@ def get_sector_benchmarks_endpoint(
     if sector:
         return {"sector_benchmark": config.get_sector_benchmark(sector)}
     return {"sectors": config.SECTOR_BENCHMARKS, "count": len(config.SECTOR_BENCHMARKS)}
+
+
+# ============================================================================
+# Fase 3: Conectores Somente-Leitura, Recalibração Preditiva e Avaliação LoRA
+# ============================================================================
+
+class ConnectorCreateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    connector_type: str = Field(..., description="sqlite_external, postgresql_readonly ou watched_directory")
+    config: Dict[str, Any] = Field(default_factory=dict)
+    query_or_table: str = Field(default="")
+    watermark_column: Optional[str] = Field(default="periodo")
+
+
+class ConnectorSyncRequest(BaseModel):
+    runtime_credentials: Optional[Dict[str, Any]] = None
+
+
+class RecalibrationProposeRequest(BaseModel):
+    drift_report_id: Optional[str] = None
+    dataset_id: Optional[str] = None
+    target_column: str = Field(default="receita_bruta")
+    candidate_model_type: str = Field(default="ridge")
+    forecast_horizon: int = Field(default=6, ge=1, le=24)
+
+
+class RecalibrationDecideRequest(BaseModel):
+    decision: str = Field(..., description="APPROVE ou REJECT")
+    notes: Optional[str] = None
+
+
+class LoraEvaluateRequest(BaseModel):
+    sector: str = Field(default="Varejo")
+    adapter_name: Optional[str] = None
+    base_model: Optional[str] = None
+    simulated_ram_overhead_mb: Optional[float] = None
+    simulate_low_quality: bool = False
+    project_id: Optional[str] = None
+
+
+@app.post("/api/projects/{project_id}/connectors", status_code=status.HTTP_201_CREATED)
+def create_connector_endpoint(
+    project_id: str,
+    payload: ConnectorCreateRequest,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    _get_project_or_404(project_id)
+    try:
+        return connectors.register_connector(
+            project_id=project_id,
+            name=payload.name,
+            connector_type=payload.connector_type,
+            config_dict=payload.config,
+            query_or_table=payload.query_or_table,
+            watermark_column=payload.watermark_column,
+            actor=session.get("operator_name", "analyst"),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/projects/{project_id}/connectors")
+def list_connectors_endpoint(
+    project_id: str,
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    _get_project_or_404(project_id)
+    items = database.list_data_connectors(project_id)
+    return {"connectors": items, "count": len(items)}
+
+
+@app.post("/api/projects/{project_id}/connectors/{connector_id}/sync")
+def sync_connector_endpoint(
+    project_id: str,
+    connector_id: str,
+    payload: Optional[ConnectorSyncRequest] = Body(default=None),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    _get_project_or_404(project_id)
+    try:
+        return connectors.sync_connector(
+            project_id=project_id,
+            connector_id=connector_id,
+            runtime_Sample_credentials=payload.runtime_credentials if payload else None,
+            actor=session.get("operator_name", "analyst"),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/projects/{project_id}/connectors/runs")
+def list_connector_runs_endpoint(
+    project_id: str,
+    connector_id: Optional[str] = Query(default=None),
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    _get_project_or_404(project_id)
+    runs = database.list_connector_ingestion_runs(project_id, connector_id=connector_id)
+    return {"runs": runs, "count": len(runs)}
+
+
+@app.post("/api/projects/{project_id}/recalibrations/propose", status_code=status.HTTP_201_CREATED)
+def propose_recalibration_endpoint(
+    project_id: str,
+    payload: RecalibrationProposeRequest = Body(default=RecalibrationProposeRequest()),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst", "validator"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    _get_project_or_404(project_id)
+    try:
+        return recalibration.propose_predictive_recalibration(
+            project_id=project_id,
+            drift_report_id=payload.drift_report_id,
+            dataset_id=payload.dataset_id,
+            target_column=payload.target_column,
+            candidate_model_type=payload.candidate_model_type,
+            forecast_horizon=payload.forecast_horizon,
+            actor=session.get("operator_name", "analyst"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/projects/{project_id}/recalibrations")
+def list_recalibrations_endpoint(
+    project_id: str,
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    _get_project_or_404(project_id)
+    proposals = database.list_recalibration_proposals(project_id)
+    return {"proposals": proposals, "count": len(proposals)}
+
+
+@app.post("/api/projects/{project_id}/recalibrations/{proposal_id}/decide")
+def decide_recalibration_endpoint(
+    project_id: str,
+    proposal_id: str,
+    payload: RecalibrationDecideRequest,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "validator"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    _get_project_or_404(project_id)
+    try:
+        return recalibration.decide_recalibration_proposal(
+            project_id=project_id,
+            proposal_id=proposal_id,
+            decision=payload.decision,
+            actor=session.get("operator_name", "validator"),
+            notes=payload.notes,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/api/system/lora/evaluate", status_code=status.HTTP_201_CREATED)
+async def evaluate_lora_endpoint(
+    payload: LoraEvaluateRequest = Body(default=LoraEvaluateRequest()),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    try:
+        return await lora_evaluator.evaluate_lora_adapter(
+            sector=payload.sector,
+            adapter_name=payload.adapter_name,
+            base_model=payload.base_model,
+            simulated_ram_overhead_mb=payload.simulated_ram_overhead_mb,
+            simulate_low_quality=payload.simulate_low_quality,
+            project_id=payload.project_id,
+            actor=session.get("operator_name", "analyst"),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/system/lora/evaluations")
+def list_lora_evaluations_endpoint(
+    project_id: Optional[str] = Query(default=None),
+    sector: Optional[str] = Query(default=None),
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    items = database.list_lora_evaluations(project_id=project_id, sector=sector)
+    return {"evaluations": items, "count": len(items)}
 
 
 # ============================================================================
