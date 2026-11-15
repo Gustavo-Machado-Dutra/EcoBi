@@ -178,12 +178,12 @@ def mask_pii_text(text: str) -> str:
 
 
 def mask_pii_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Retorna uma cópia do DataFrame com todas as colunas de texto com PII mascaradas."""
+    """Retorna uma cópia do DataFrame com todas as colunas de texto com PII mascaradas e injeções neutralizadas."""
     df_copy = df.copy()
     for col in df_copy.columns:
         if pd.api.types.is_string_dtype(df_copy[col]) or pd.api.types.is_object_dtype(df_copy[col]):
             df_copy[col] = df_copy[col].apply(
-                lambda val: mask_pii_text(str(val)) if pd.notnull(val) else val
+                lambda val: sanitize_untrusted_text(mask_pii_text(str(val))) if pd.notnull(val) else val
             )
     return df_copy
 
@@ -214,7 +214,7 @@ def sanitize_untrusted_text(text: str) -> str:
     sanitized = text.replace("\x00", "")  # Remoção de null bytes
     # Neutraliza comandos de injeção substituindo por marcadores neutros
     for pattern_regex in RE_INJECTION:
-        sanitized = pattern_regex.sub("[CONTEÚDO_DESARMADO]", sanitized)
+        sanitized = pattern_regex.sub("[BLOCKED_INJECTION: CONTEÚDO_DESARMADO]", sanitized)
 
     return sanitized
 

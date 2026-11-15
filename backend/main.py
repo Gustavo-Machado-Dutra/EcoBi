@@ -844,6 +844,7 @@ def analyze_financial_esg_endpoint(
         actor="validation_engine",
     )
     res["validation"] = val
+    res["result"] = dict(res)
     return res
 
 
@@ -888,6 +889,7 @@ def analyze_predictive_endpoint(
             actor="validation_engine",
         )
         res["validation"] = val
+    res["result"] = dict(res)
     return res
 
 
@@ -946,6 +948,7 @@ def simulate_endpoint(
         actor="validation_engine",
     )
     res["validation"] = val
+    res["result"] = dict(res)
     return res
 
 

@@ -1713,13 +1713,13 @@ def delete_project_cascade(
 def purge_expired_project_data(
     retention_override_days: Optional[int] = None,
     conn: Optional[sqlite3.Connection] = None,
-) -> Dict[str, int]:
+) -> Dict[str, Any]:
     """Localiza projetos expirados pelo prazo de retenção ou marcados como deletados e os expurga.
 
     Garante o cumprimento automático da política de ciclo de vida e retenção de dados da LGPD.
-    Retorna contadores dos registros expurgados.
+    Retorna contadores dos registros expurgados e lista de IDs expurgados.
     """
-    def _execute(target_conn: sqlite3.Connection) -> Dict[str, int]:
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
         now_dt = datetime.now(timezone.utc)
         projects = target_conn.execute(
             "SELECT id, retention_days, created_at, is_deleted FROM projects;"
@@ -1739,8 +1739,9 @@ def purge_expired_project_data(
             except Exception as e:
                 logger.warning("Falha ao analisar data de criação do projeto %s: %s", p["id"], e)
 
-        stats: Dict[str, int] = {
+        stats: Dict[str, Any] = {
             "purged_projects": len(expired_project_ids),
+            "purged_project_ids": expired_project_ids,
             "datasets": 0,
             "dataset_mappings": 0,
             "transformations": 0,
@@ -1751,6 +1752,19 @@ def purge_expired_project_data(
         }
 
         for pid in expired_project_ids:
+            ds_rows = target_conn.execute(
+                "SELECT storage_path FROM datasets WHERE project_id = ?;", (pid,)
+            ).fetchall()
+            for r in ds_rows:
+                sp = r["storage_path"]
+                if sp:
+                    try:
+                        p_file = Path(sp)
+                        if p_file.exists() and p_file.is_file():
+                            p_file.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+
             with transaction(target_conn):
                 stats["validations"] += target_conn.execute(
                     "DELETE FROM validations WHERE project_id = ?;", (pid,)

@@ -325,7 +325,7 @@ def _build_report_json() -> Dict[str, Any]:
         "sections": [
             {
                 "name": "ReportSection1",
-                "displayName": "Visão Executiva Financeira",
+                "displayName": "Visão Executiva & Governança",
                 "filters": "[]",
                 "ordinal": 0,
                 "visualContainers": [
@@ -355,7 +355,7 @@ def _build_report_json() -> Dict[str, Any]:
             },
             {
                 "name": "ReportSection2",
-                "displayName": "Desempenho ESG & Carbono",
+                "displayName": "Performance Financeira & Margens",
                 "filters": "[]",
                 "ordinal": 1,
                 "visualContainers": [
@@ -385,7 +385,7 @@ def _build_report_json() -> Dict[str, Any]:
             },
             {
                 "name": "ReportSection3",
-                "displayName": "Previsões & Simulador",
+                "displayName": "Contabilidade ESG & GHG Protocol",
                 "filters": "[]",
                 "ordinal": 2,
                 "visualContainers": [
@@ -411,7 +411,7 @@ def _build_report_json() -> Dict[str, Any]:
             },
             {
                 "name": "ReportSection4",
-                "displayName": "Rastreabilidade & Validação",
+                "displayName": "Previsões & Simulações What-If",
                 "filters": "[]",
                 "ordinal": 3,
                 "visualContainers": [
@@ -536,20 +536,27 @@ def validate_pbip_bundle(
     csv_data_dir = base_dir / "data"
     fact_csv = csv_data_dir / "FactOperacoesMensais.csv"
     reconciled_kpis: Dict[str, Any] = {}
+    max_diff: float = 0.0
 
     if fact_csv.exists():
         try:
             df_fact = pd.read_csv(fact_csv)
+            rec_bruta_sum = float(df_fact["ReceitaBruta"].sum()) if "ReceitaBruta" in df_fact.columns else 0.0
             rec_liq_sum = float(df_fact["ReceitaLiquida"].sum()) if "ReceitaLiquida" in df_fact.columns else 0.0
             custo_tot_sum = float(df_fact["CustoTotal"].sum()) if "CustoTotal" in df_fact.columns else 0.0
             lucro_op_sum = float(df_fact["LucroOperacional"].sum()) if "LucroOperacional" in df_fact.columns else 0.0
+            scope1_sum = float(df_fact["Scope1CO2eTons"].sum()) if "Scope1CO2eTons" in df_fact.columns else 0.0
+            scope2_sum = float(df_fact["Scope2CO2eTons"].sum()) if "Scope2CO2eTons" in df_fact.columns else 0.0
             gross_emiss_sum = float(df_fact["TotalGrossEmissionsCO2eTons"].sum()) if "TotalGrossEmissionsCO2eTons" in df_fact.columns else 0.0
             credits_sum = float(df_fact["CreditosCarbonoTCO2e"].sum()) if "CreditosCarbonoTCO2e" in df_fact.columns else 0.0
 
             reconciled_kpis = {
+                "receita_bruta_total": round(rec_bruta_sum, 2),
                 "receita_liquida_total": round(rec_liq_sum, 2),
                 "custo_total": round(custo_tot_sum, 2),
                 "lucro_operacional_total": round(lucro_op_sum, 2),
+                "scope1_co2e_tons": round(scope1_sum, 4),
+                "scope2_co2e_tons": round(scope2_sum, 4),
                 "total_gross_emissions_co2e_tons": round(gross_emiss_sum, 4),
                 "creditos_carbono_tco2e": round(credits_sum, 4),
             }
@@ -560,6 +567,8 @@ def validate_pbip_bundle(
                     if k in reconciled_kpis:
                         act_val = reconciled_kpis[k]
                         diff = abs(float(act_val) - float(exp_val))
+                        if diff > max_diff:
+                            max_diff = diff
                         if diff > 1e-4:
                             discrepancies.append(
                                 f"Discrepância numérica no KPI '{k}': esperado {exp_val}, real {act_val} (diff: {diff:.6f})."
@@ -574,6 +583,7 @@ def validate_pbip_bundle(
         "valid": is_valid,
         "bundle_dir": str(base_dir),
         "reconciled_kpis": reconciled_kpis,
+        "reconciliation_tolerance": max_diff,
         "discrepancies": discrepancies,
     }
 
@@ -828,7 +838,7 @@ def generate_pbip_project(
         json.dump(pbip_content, f, indent=2, ensure_ascii=False)
 
     # <Slug>.SemanticModel/definition.pbism
-    pbism_content = {"version": "4.0", "settings": {}}
+    pbism_content = {"version": "1.0", "settings": {}}
     with open(sem_model_dir / "definition.pbism", "w", encoding="utf-8") as f:
         json.dump(pbism_content, f, indent=2, ensure_ascii=False)
 
@@ -917,6 +927,7 @@ def generate_pbip_project(
         "slug": slug,
         "pbip_path": str(pbip_file_path),
         "bundle_dir": str(bundle_dir),
+        "bundle_path": str(bundle_dir),
         "zip_path": str(zip_path),
         "status": "GENERATED_SUCCESSFULLY",
         "validation_status": final_validation_status,

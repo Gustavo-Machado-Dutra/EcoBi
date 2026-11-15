@@ -956,23 +956,16 @@ def process_assistant_message_sync(
 ) -> Dict[str, Any]:
     """Helper síncrono para execução do processador de mensagens do assistente."""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(
-                    asyncio.run,
-                    process_assistant_message(
-                        project_id=project_id,
-                        message=message,
-                        conversation_history=conversation_history,
-                        dataset_id=dataset_id,
-                        model_name=model_name,
-                        actor=actor,
-                    ),
-                ).result()
-        else:
-            return loop.run_until_complete(
+        asyncio.get_running_loop()
+        is_running = True
+    except RuntimeError:
+        is_running = False
+
+    if is_running:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(
+                asyncio.run,
                 process_assistant_message(
                     project_id=project_id,
                     message=message,
@@ -980,16 +973,15 @@ def process_assistant_message_sync(
                     dataset_id=dataset_id,
                     model_name=model_name,
                     actor=actor,
-                )
-            )
-    except Exception:
-        return asyncio.run(
-            process_assistant_message(
-                project_id=project_id,
-                message=message,
-                conversation_history=conversation_history,
-                dataset_id=dataset_id,
-                model_name=model_name,
-                actor=actor,
-            )
+                ),
+            ).result()
+    return asyncio.run(
+        process_assistant_message(
+            project_id=project_id,
+            message=message,
+            conversation_history=conversation_history,
+            dataset_id=dataset_id,
+            model_name=model_name,
+            actor=actor,
         )
+    )
