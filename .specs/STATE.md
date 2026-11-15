@@ -106,13 +106,37 @@
 - **Date**: 2026-11-15
 - **Status**: active
 
+### AD-014
+- **Decision**: Empacotamento Windows baseado em launcher autocontido (`scripts/ecobi_launcher.py`), scripts de bootstrap duplo-clique (`scripts/start_ecobi.bat`, `scripts/start_ecobi.ps1`) e spec PyInstaller (`ecobi.spec`), sem introdução de Electron ou dependências Node pesadas.
+- **Reason**: Preserva a arquitetura monólito local-first com backend FastAPI e frontend HTML/JS nativo, cumprindo a restrição de não adicionar complexidade desnecessária e mantendo o consumo de memória estritamente abaixo do orçamento de 8 GB.
+- **Trade-off**: A interface é aberta no navegador padrão do usuário via loopback local ao invés de janela nativa embarcada.
+- **Scope**: `scripts/*`, `ecobi.spec`, `docs/windows_deployment.md`.
+- **Date**: 2026-11-15
+- **Status**: active
+
+### AD-015
+- **Decision**: Agendador de tarefas assíncrono cooperativo baseado em `asyncio` (`backend/services/scheduler.py`) integrado ao lifespan do FastAPI, com trava em memória contra execuções simultâneas por job/conector, retry com jitter e teste de restauração em temp DB para backups online SQLite.
+- **Reason**: Atende aos requisitos da Seção 17 do `PLAN.md` e Seção 5 da Fase 4 sem a introdução de brokers externos (RabbitMQ, Redis, Celery), garantindo operação autônoma em estação de trabalho Windows air-gapped.
+- **Trade-off**: Os agendamentos são executados enquanto a aplicação EcoBI estiver em execução (ou iniciada como serviço/launcher).
+- **Scope**: `backend/services/scheduler.py`, `backend/database.py` (tabelas `scheduled_jobs`, `job_execution_logs`).
+- **Date**: 2026-11-15
+- **Status**: active
+
+### AD-016
+- **Decision**: Dashboard comparativo multiprojeto (`backend/services/multiproject.py`) com agregação determinística de métricas financeiras e de GEE (Escopos 1, 2 e 3), índice de ecoeficiência, segregação de créditos de carbono, linhagem `REAL` vs `ESTIMADO` e filtragem estrita por RBAC do usuário.
+- **Reason**: Atende à governança anti-greenwashing e requisitos executivos de consolidação multi-unidade corporativa sem criar dependência de bancos analíticos externos (OLAP).
+- **Trade-off**: Agregações são computadas localmente a partir das bases validadas no SQLite.
+- **Scope**: `backend/services/multiproject.py`, `backend/main.py`, `frontend/app.js`.
+- **Date**: 2026-11-15
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: ecobi-phase3
-- **Phase / Task**: Concluído (MVP `T1`–`T20` + Fase 2 `T21`–`T28` + Fase 3 `T29`–`T36` 100% implementados, auditados e verificados com 29/29 testes aprovados)
-- **Completed**: `T1` a `T36` (MVP completo + Fase 2 Governança/Drift/Backup/RBAC + Fase 3 Conectores Somente-Leitura, Recalibração Preditiva Assistida e Avaliação LoRA com auditoria de segurança)
-- **In-progress** (file:line): none
-- **Next step**: Fase 4 do Roadmap (Empacotamento executável desktop Windows, agendamento local de rotinas periódicas de sincronização/backup e relatórios comparativos multi-projeto)
+- **Feature**: ecobi-phase4
+- **Phase / Task**: Início da Fase 4 (`T37` a `T44`, critérios `C21` a `C24`)
+- **Completed**: Fases 1, 2 e 3 100% concluídas (`T1` a `T36`, `C1` a `C20`, 29 testes aprovados)
+- **In-progress**: `T37` (Migration 006 e CRUD de agendamentos)
+- **Next step**: Implementar `T37` em `backend/database.py` e avançar com `T38` a `T44`
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: main
