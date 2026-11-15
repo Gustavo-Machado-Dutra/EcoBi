@@ -98,11 +98,19 @@
 - **Date**: 2026-11-15
 - **Status**: active
 
+### AD-013
+- **Decision**: Migração 005 (`MIGRATION_005_SQL`), suporte a `INCONCLUSIVO_RUNTIME_INDISPONIVEL` com métricas anuláveis em `lora_evaluations`, inferência real via Ollama loopback sem atalhos de teste em código de produção, e defesa em profundidade em conectores (`validate_readonly_query` reforçado contra `SELECT INTO`/`LOAD_EXTENSION`, sanitização de DSNs chave-valor e exceções, confinamento do `watched_directory` via `safe_resolve_path` e watermark tipado).
+- **Reason**: Resposta aos achados da auditoria independente `T36-AUDIT` (`audit-T36.md`), garantindo fidelidade absoluta às medições locais e proteção estrita contra vazamento de credenciais e path traversal.
+- **Trade-off**: Quando o runtime Ollama local ou a tag do adaptador estiverem ausentes no host, o status é registrado como `INCONCLUSIVO_RUNTIME_INDISPONIVEL` e scores como `None`/`n/d` (nunca aprovado e nunca assumindo acurácia perfeita).
+- **Scope**: `backend/database.py`, `backend/services/connectors.py`, `backend/services/lora_evaluator.py`, `frontend/app.js`, `tests/test_phase3_connectors_recalibration_lora.py`.
+- **Date**: 2026-11-15
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: ecobi-phase3
-- **Phase / Task**: Concluído (MVP `T1`–`T20` + Fase 2 `T21`–`T28` + Fase 3 `T29`–`T36` 100% implementados, integrados e verificados com 29/29 testes aprovados)
-- **Completed**: `T1` a `T36` (MVP completo + Fase 2 Drift/Benchmark/Backup/RBAC + Fase 3 Conectores Somente-Leitura, Recalibração Preditiva Assistida e Avaliação Experimental LoRA)
+- **Phase / Task**: Concluído (MVP `T1`–`T20` + Fase 2 `T21`–`T28` + Fase 3 `T29`–`T36` 100% implementados, auditados e verificados com 29/29 testes aprovados)
+- **Completed**: `T1` a `T36` (MVP completo + Fase 2 Governança/Drift/Backup/RBAC + Fase 3 Conectores Somente-Leitura, Recalibração Preditiva Assistida e Avaliação LoRA com auditoria de segurança)
 - **In-progress** (file:line): none
 - **Next step**: Fase 4 do Roadmap (Empacotamento executável desktop Windows, agendamento local de rotinas periódicas de sincronização/backup e relatórios comparativos multi-projeto)
 - **Blockers**: none

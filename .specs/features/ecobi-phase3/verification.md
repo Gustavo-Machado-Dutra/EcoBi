@@ -74,4 +74,20 @@ A Fase 3 do Roadmap do **EcoBI Intelligence** (`T29` a `T36` — `ECOBI-17` Cone
    - Integra `drift_monitor.py`, `predictive.py` e `validation_engine.py`, preservando separação formal entre `incumbent_analysis_id` (`INCUMBENT_ACTIVE`), `candidate_analysis_id` (`CANDIDATE_PROPOSED`) e status de promoção (`PROPOSTA_PENDENTE` -> `PROMOVIDO_APROVADO`).
    - Modelos candidatos rejeitados pelo `Validation Engine` nascem como `BLOQUEADA_VALIDACAO` e têm promoção bloqueada com `HTTP 422`.
 4. **`C20` — Avaliação Experimental de Adaptadores LoRA Setoriais (`backend/services/lora_evaluator.py`)**:
-   - Avalia adaptadores LoRA locais por setor econômico sob `BLOCK_EXTERNAL_AI=True` e teto de `8192 MB` de RAM (`psutil`), exigindo `tool_accuracy_pct == 100.0%` e `deterministic_alignment_score >= 85.0%` para `APTO_EXPERIMENTAL`, reprovando adaptadores inferiores (`REPROVADO_QUALIDADE`) e bloqueando preventivamente (`BLOCKED_INSUFFICIENT_RAM`) quando o orçamento de memória é excedido.
+   - Avalia adaptadores LoRA locais por setor econômico sob `BLOCK_EXTERNAL_AI=True` e teto de `8192 MB` de RAM (`psutil`), exigindo `tool_accuracy_pct == 100.0%` e `deterministic_alignment_score >= 85.0%` para `APTO_EXPERIMENTAL`, reprovando adaptadores inferiores (`REPROVADO_QUALIDADE`), retornando `INCONCLUSIVO_RUNTIME_INDISPONIVEL` com métricas `None` quando o daemon Ollama ou a tag do adaptador estiverem ausentes (sem falsos positivos em produção), e bloqueando preventivamente (`BLOCKED_INSUFFICIENT_RAM`) quando o orçamento de memória for excedido.
+
+---
+
+## 4. Auditoria Independente de Código e Segurança (`T36-AUDIT`)
+
+Após a primeira rodada de implementação, foi conduzida uma auditoria independente estrita de código e segurança (`audit-T36.md`), resultando em correções profundas:
+
+1. **`SEC-01`**: Eliminação de brecha léxica em `validate_readonly_query` adicionando bloqueio explícito a `LOAD_EXTENSION`, `INTO` (prevenindo `SELECT INTO`) e correção do regex de `UPSERT`.
+2. **`SEC-02`**: Sanitização profunda de credenciais em DSNs no formato chave-valor (`password=...`, `pwd=...`) e mascaramento das mensagens de exceção antes de persistir em `connector_ingestion_runs.error_message`.
+3. **`SEC-03`**: Confinamento do `watched_directory` contra path traversal via `security.safe_resolve_path` contra raízes permitidas (`config.CONNECTOR_ALLOWED_ROOTS`).
+4. **`LOG-04`**: Comparação de marca d'água incremental tipada (temporal com suporte a `dayfirst=True`, numérico para IDs sequenciais e fallback restrito a datas ISO).
+5. **`LOG-05`**: Rastreamento de SHA-256 por arquivo em diretórios monitorados sem duplicação e rejeição no registro com `HTTP 422` para fontes relacionais sem coluna de watermark.
+6. **`T32-FIX`**: Remoção integral de métricas hardcoded em `lora_evaluator.py`; cálculo dinâmico de acurácia de referência, alinhamento e concordância; inferência real via Ollama loopback; introdução do status `INCONCLUSIVO_RUNTIME_INDISPONIVEL` para ausência de runtime.
+7. **`T29-FIX`**: Aplicação da `MIGRATION_005_SQL` idempotente permitindo valores nulos em métricas e o status `INCONCLUSIVO_RUNTIME_INDISPONIVEL` na tabela `lora_evaluations`.
+8. **`T34-FIX`**: Atualização do frontend em `frontend/app.js` para renderizar métricas nulas como `n/d` (evitando `null%`) e disparar alertas visuais em conformidade com o design system e acessibilidade.
+
