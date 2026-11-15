@@ -74,13 +74,37 @@
 - **Date**: 2026-11-15
 - **Status**: active
 
+### AD-010
+- **Decision**: Conectores corporativos estritamente somente-leitura (`sqlite_external`, `postgresql_readonly`, `watched_directory`) com validação léxica/sintática anti-DML/DDL, marca d'água incremental (`watermark_column` / `last_source_sha256`), mascaramento de credenciais e integração direta ao motor `data_quality.py`.
+- **Reason**: Atende à Seção 17 do `PLAN.md` ("conectores corporativos") garantindo soberania dos dados locais, ausência total de mutação nas bases de origem e rastreabilidade por SHA-256.
+- **Trade-off**: Consultas em conectores de banco são restritas a instruções `SELECT` simples sobre tabelas/views autorizadas, proibindo comandos procedurais ou múltiplos statements.
+- **Scope**: `backend/services/connectors.py`, `backend/database.py` (tabelas `data_connectors`, `connector_ingestion_runs`).
+- **Date**: 2026-11-15
+- **Status**: active
+
+### AD-011
+- **Decision**: Recalibração preditiva assistida acoplada ao `drift_monitor.py` e ao `Validation Engine`, preservando separação formal entre modelo incumbente (`incumbent_analysis_id`), modelo candidato (`candidate_analysis_id`) e modelo promovido (`PROMOVIDO_APROVADO`), exigindo aprovação humana explícita (`admin` ou `validator`).
+- **Reason**: Atende às Seções 8, 9 e 17 do `PLAN.md` evitando substituição silenciosa de modelos em produção e impedindo que modelos recalibrados com erro superior ao baseline ou rejeitados pelo Validation Engine sejam promovidos.
+- **Trade-off**: Requer etapa explícita de decisão humana na API/UI para efetivar a promoção de um modelo candidato aprovado.
+- **Scope**: `backend/services/recalibration.py`, `backend/database.py` (tabela `recalibration_proposals`).
+- **Date**: 2026-11-15
+- **Status**: active
+
+### AD-012
+- **Decision**: Pipeline local de avaliação experimental de adaptadores LoRA setoriais (`backend/services/lora_evaluator.py`) sob governança de memória `memory_guard.py` (`<= 8192 MB`), confrontando cada adaptador contra o modelo base `qwen3.5:4b` e uma referência determinística auditável.
+- **Reason**: Atende às Seções 6, 15 e 17 do `PLAN.md` ("fine-tuning LoRA após avaliação") mantendo `BLOCK_EXTERNAL_AI=True` e bloqueando preventivamente (`BLOCKED_INSUFFICIENT_RAM`) configurações que excedam o orçamento de RAM.
+- **Trade-off**: A avaliação é estritamente experimental e analítica; cálculos financeiros e ESG permanecem 100% executados pelos motores determinísticos em Python.
+- **Scope**: `backend/services/lora_evaluator.py`, `backend/database.py` (tabela `lora_evaluations`).
+- **Date**: 2026-11-15
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: ecobi-phase2
-- **Phase / Task**: Concluído (MVP T1–T20 + Fase 2 T21–T28 100% implementados, integrados e verificados com 25/25 testes aprovados)
-- **Completed**: T1 a T28 (MVP completo + Monitoramento de Drift PSI/WAPE, Benchmark LLM 4B vs 9B & Unload Ocioso, Backup Online SQLite HMAC-SHA256 e Governança Multiusuário RBAC / Benchmarks Multi-Setoriais)
-- **In-progress** (file:line): none
-- **Next step**: Fase 3 do Roadmap (Conectores corporativos ERP/PostgreSQL somente-leitura, agendamento automatizado de backups/recalibração e avaliação experimental de adaptadores LoRA locais)
+- **Feature**: ecobi-phase3
+- **Phase / Task**: Em execução — Fase 3 do Roadmap (`T29` a `T36`: Conectores Somente-Leitura, Recalibração Preditiva Assistida e Avaliação Experimental LoRA)
+- **Completed**: MVP (`T1`–`T20`), Fase 2 (`T21`–`T28`) e Especificação/Design da Fase 3 (`.specs/features/ecobi-phase3/spec.md`, `design.md`, `tasks.md`)
+- **In-progress** (file:line): `T29` a `T36`
+- **Next step**: Implementação coordenada de `T29` a `T36`, execução da suíte Pytest completa e revisão independente
 - **Blockers**: none
-- **Uncommitted files**: none
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/ecobi-phase3/*`
 - **Branch**: main
