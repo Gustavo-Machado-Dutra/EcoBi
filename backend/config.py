@@ -90,6 +90,83 @@ OFFICIAL_THEME_COLORS: Dict[str, str] = {
 }
 
 
+# ============================================================================
+# Benchmarks Multi-Setoriais de Referência (Fase 2 — PLAN.md Seções 3 e 17)
+# ============================================================================
+
+SECTOR_BENCHMARKS: Dict[str, Dict[str, Any]] = {
+    "Varejo": {
+        "sector": "Varejo",
+        "target_net_margin_pct": 18.0,
+        "target_recycling_rate_pct": 60.0,
+        "max_energy_intensity_kwh_per_1k_brl": 35.0,
+        "max_carbon_intensity_tco2e_per_1m_brl": 12.5,
+        "reverse_logistics_benchmark_pct": 8.0,
+        "reference_source": "EcoBI Reference / GHG Protocol Varejo Brasil",
+    },
+    "Indústria": {
+        "sector": "Indústria",
+        "target_net_margin_pct": 15.0,
+        "target_recycling_rate_pct": 75.0,
+        "max_energy_intensity_kwh_per_1k_brl": 95.0,
+        "max_carbon_intensity_tco2e_per_1m_brl": 42.0,
+        "reverse_logistics_benchmark_pct": 5.0,
+        "reference_source": "EcoBI Reference / CNI & GHG Protocol Manufatura",
+    },
+    "Logística": {
+        "sector": "Logística",
+        "target_net_margin_pct": 12.0,
+        "target_recycling_rate_pct": 55.0,
+        "max_energy_intensity_kwh_per_1k_brl": 45.0,
+        "max_carbon_intensity_tco2e_per_1m_brl": 68.0,
+        "reverse_logistics_benchmark_pct": 12.0,
+        "reference_source": "EcoBI Reference / PLVB Transporte & Logística",
+    },
+    "Energia": {
+        "sector": "Energia",
+        "target_net_margin_pct": 22.0,
+        "target_recycling_rate_pct": 70.0,
+        "max_energy_intensity_kwh_per_1k_brl": 120.0,
+        "max_carbon_intensity_tco2e_per_1m_brl": 55.0,
+        "reverse_logistics_benchmark_pct": 3.0,
+        "reference_source": "EcoBI Reference / EPE & MCTI SIN",
+    },
+    "Agronegócio": {
+        "sector": "Agronegócio",
+        "target_net_margin_pct": 16.0,
+        "target_recycling_rate_pct": 65.0,
+        "max_energy_intensity_kwh_per_1k_brl": 60.0,
+        "max_carbon_intensity_tco2e_per_1m_brl": 38.0,
+        "reverse_logistics_benchmark_pct": 6.0,
+        "reference_source": "EcoBI Reference / Embrapa & IPCC Agro",
+    },
+    "Serviços": {
+        "sector": "Serviços",
+        "target_net_margin_pct": 20.0,
+        "target_recycling_rate_pct": 50.0,
+        "max_energy_intensity_kwh_per_1k_brl": 25.0,
+        "max_carbon_intensity_tco2e_per_1m_brl": 8.0,
+        "reverse_logistics_benchmark_pct": 4.0,
+        "reference_source": "EcoBI Reference / GHG Protocol Serviços",
+    },
+}
+
+
+def get_sector_benchmark(sector_name: str) -> Dict[str, Any]:
+    """Retorna os parâmetros de benchmark de referência para o setor informado."""
+    norm = (sector_name or "Varejo").strip().lower()
+    for key, val in SECTOR_BENCHMARKS.items():
+        if key.lower() == norm or norm in key.lower():
+            return dict(val)
+    if "manufat" in norm or "indust" in norm:
+        return dict(SECTOR_BENCHMARKS["Indústria"])
+    if "transp" in norm or "logist" in norm:
+        return dict(SECTOR_BENCHMARKS["Logística"])
+    if "agro" in norm:
+        return dict(SECTOR_BENCHMARKS["Agronegócio"])
+    return dict(SECTOR_BENCHMARKS["Varejo"])
+
+
 def get_runtime_config_summary() -> Dict[str, Any]:
     """Retorna sumário estruturado e seguro das configurações ativas (sem segredos)."""
     return {

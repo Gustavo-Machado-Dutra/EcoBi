@@ -167,3 +167,19 @@ def is_advanced_model_eligible() -> Tuple[bool, str]:
         )
 
     return (True, "Ambiente elegível para ativação do modelo avançado (Qwen 3.5 9B).")
+
+
+def reclaim_idle_memory() -> Dict[str, Any]:
+    """Executa coleta explícita de lixo em memória local e retorna a medição RSS antes e depois."""
+    import gc
+
+    before = get_memory_status()
+    collected_objects = gc.collect()
+    after = get_memory_status()
+    return {
+        "collected_objects": int(collected_objects),
+        "ram_before_mb": before["ecobi_ram_used_mb"],
+        "ram_after_mb": after["ecobi_ram_used_mb"],
+        "ram_budget_mb": after["ecobi_ram_budget_mb"],
+        "memory_alert_level": after["memory_alert_level"],
+    }

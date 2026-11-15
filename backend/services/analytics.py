@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from backend import config
 from backend import database
 from backend.services.data_quality import _to_float_series, load_dataset_dataframe
 
@@ -434,6 +435,26 @@ def run_financial_esg_analysis(
         },
     )
 
+    proj_info = database.get_project(project_id) or {}
+    sector_name = str(proj_info.get("sector") or "Varejo")
+    sector_ref = config.get_sector_benchmark(sector_name)
+    carbon_per_1m_brl = round(
+        (total_gross_emissions_co2e_tons / (receita_liquida_total / 1_000_000.0))
+        if receita_liquida_total > 0
+        else 0.0,
+        4,
+    )
+    sector_benchmark_comparison = {
+        "sector": sector_ref["sector"],
+        "reference_source": sector_ref["reference_source"],
+        "net_margin_vs_target_pct": round(margem_liquida_pct - float(sector_ref["target_net_margin_pct"]), 2),
+        "recycling_vs_target_pct": round(taxa_reciclagem_pct - float(sector_ref["target_recycling_rate_pct"]), 2),
+        "carbon_intensity_tco2e_per_1m_brl": carbon_per_1m_brl,
+        "max_carbon_intensity_tco2e_per_1m_brl": sector_ref["max_carbon_intensity_tco2e_per_1m_brl"],
+        "within_carbon_benchmark": carbon_per_1m_brl <= float(sector_ref["max_carbon_intensity_tco2e_per_1m_brl"]),
+        "benchmark_targets": sector_ref,
+    }
+
     return {
         "analysis_id": analysis_record["id"],
         "project_id": project_id,
@@ -442,6 +463,7 @@ def run_financial_esg_analysis(
         "financial_kpis": financial_kpis,
         "operational_kpis": operational_kpis,
         "esg_kpis": esg_kpis,
+        "sector_benchmark_comparison": sector_benchmark_comparison,
         "emission_factors_used": emission_factors_used,
         "anomalies": anomalies,
         "monthly_series": monthly_series,

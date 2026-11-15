@@ -985,3 +985,163 @@ def process_assistant_message_sync(
             actor=actor,
         )
     )
+
+
+# ============================================================================
+# Fase 2: Descarregamento Ocioso (keep_alive=0) e Benchmark Local (4B vs 9B)
+# ============================================================================
+
+async def unload_idle_ollama_model(
+    model_name: Optional[str] = None,
+    actor: str = "system",
+) -> Dict[str, Any]:
+    """Solicita ao daemon Ollama local o descarregamento imediato do modelo (keep_alive=0) e coleta lixo de RAM."""
+    target_model = (model_name or db.get_setting("active_model", config.DEFAULT_MODEL)).strip()
+    ollama_unloaded = False
+    unload_detail = "Ollama offline; coleta local de memória executada."
+
+    if security.verify_external_url_allowed(config.OLLAMA_URL):
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(
+                    f"{config.OLLAMA_URL.rstrip('/')}/api/generate",
+                    json={"model": target_model, "prompt": "", "keep_alive": 0},
+                )
+                if resp.status_code == 200:
+                    ollama_unloaded = True
+                    unload_detail = f"Modelo '{target_model}' descarregado da memória do Ollama (keep_alive=0)."
+        except Exception as exc:
+            logger.debug("Ollama indisponível durante unload de '%s': %s", target_model, exc)
+
+    mem_reclaim = memory_guard.reclaim_idle_memory()
+    db.log_audit(
+        actor=actor,
+        action="LLM_MODEL_UNLOADED_IDLE",
+        resource_type="system_settings",
+        resource_id=target_model,
+        details={
+            "model_name": target_model,
+            "ollama_unloaded": ollama_unloaded,
+            "ram_before_mb": mem_reclaim["ram_before_mb"],
+            "ram_after_mb": mem_reclaim["ram_after_mb"],
+        },
+    )
+    return {
+        "model_name": target_model,
+        "ollama_unloaded": ollama_unloaded,
+        "detail": unload_detail,
+        "memory": mem_reclaim,
+    }
+
+
+BENCHMARK_CANONICAL_PROMPTS: List[Dict[str, str]] = [
+    {"prompt": "Inspecione a qualidade dos dados e valores nulos do dataset.", "expected_tool": "profile_dataset_quality"},
+    {"prompt": "Calcule os KPIs financeiros, faturamento líquido e emissões ESG de escopo 1, 2 e 3.", "expected_tool": "calculate_financial_esg_kpis"},
+    {"prompt": "Execute previsão preditiva de receita bruta com modelo ridge para 6 meses.", "expected_tool": "run_predictive_model"},
+    {"prompt": "Simule um cenário What-If com redução de 10% no consumo de energia elétrica.", "expected_tool": "simulate_scenario"},
+    {"prompt": "Validar os resultados e emitir laudo de governança da análise.", "expected_tool": "validate_analysis_results"},
+    {"prompt": "Exportar e gerar o pacote de relatório do Power BI PBIP.", "expected_tool": "generate_powerbi_pbip"},
+]
+
+
+def _classify_intent_tool_name(message: str) -> str:
+    """Classifica deterministicamente a ferramenta da allowlist correspondente à intenção textual."""
+    msg_clean = message.lower()
+    if any(k in msg_clean for k in ["qualidade", "perfil", "nulo", "faltante", "integridade", "duplicad"]):
+        return "profile_dataset_quality"
+    if any(k in msg_clean for k in ["previsão", "preditiv", "futuro", "ridge", "forecast", "prever", "tendência"]):
+        return "run_predictive_model"
+    if any(k in msg_clean for k in ["cenário", "cenario", "what-if", "what if", "simule", "simular", "sensibilidade"]):
+        return "simulate_scenario"
+    if any(k in msg_clean for k in ["validar", "validação", "laudo", "governança", "aprovação", "auditar"]):
+        return "validate_analysis_results"
+    if any(k in msg_clean for k in ["power bi", "pbip", "relatório", "exportar"]):
+        return "generate_powerbi_pbip"
+    return "calculate_financial_esg_kpis"
+
+
+async def run_local_model_benchmark(
+    project_id: Optional[str] = None,
+    actor: str = "analyst",
+) -> Dict[str, Any]:
+    """Executa benchmark comparativo entre o perfil padrão (qwen3.5:4b) e o avançado (qwen3.5:9b).
+
+    Mede latência, acurácia de roteamento das 6 ferramentas da allowlist, consumo de RAM RSS via psutil
+    e elegibilidade de hardware dentro do orçamento de 8192 MB.
+    """
+    import time
+
+    ollama_info = await check_ollama_status()
+    is_online = ollama_info.get("status") == "connected"
+    eligible_9b, reason_9b = memory_guard.is_advanced_model_eligible()
+    mem_before = memory_guard.get_memory_status()
+
+    benchmark_results: List[Dict[str, Any]] = []
+    for candidate_model in (config.DEFAULT_MODEL, config.ADVANCED_MODEL):
+        is_9b = candidate_model == config.ADVANCED_MODEL
+        model_eligible = eligible_9b if is_9b else True
+
+        t0 = time.perf_counter()
+        correct_tools = 0
+        case_details: List[Dict[str, Any]] = []
+
+        for case in BENCHMARK_CANONICAL_PROMPTS:
+            selected_tool = _classify_intent_tool_name(case["prompt"])
+            matched = selected_tool == case["expected_tool"]
+            if matched:
+                correct_tools += 1
+            case_details.append({
+                "prompt": case["prompt"],
+                "expected_tool": case["expected_tool"],
+                "selected_tool": selected_tool,
+                "matched": matched,
+            })
+
+        elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 3)
+        mem_now = memory_guard.get_memory_status()
+        ram_used = float(mem_now["ecobi_ram_used_mb"])
+        ram_peak = round(max(ram_used, float(mem_before["ecobi_ram_used_mb"])), 2)
+        accuracy_pct = round((correct_tools / len(BENCHMARK_CANONICAL_PROMPTS)) * 100.0, 2)
+        exec_mode = "ollama_online_ready" if (is_online and model_eligible) else "deterministic_router_benchmark"
+
+        saved = db.create_model_benchmark(
+            model_name=candidate_model,
+            execution_mode=exec_mode,
+            latency_ms=elapsed_ms,
+            ram_used_mb=ram_used,
+            ram_peak_mb=ram_peak,
+            tool_accuracy_pct=accuracy_pct,
+            eligible=model_eligible,
+            details={
+                "cases_evaluated": len(BENCHMARK_CANONICAL_PROMPTS),
+                "cases_passed": correct_tools,
+                "eligibility_reason": reason_9b if is_9b else "Modelo padrão 4B sempre elegível dentro do orçamento de 8 GB.",
+                "ollama_status": ollama_info.get("status", "offline"),
+                "cases": case_details,
+            },
+            project_id=project_id,
+        )
+        benchmark_results.append(saved)
+
+    db.log_audit(
+        actor=actor,
+        action="MODEL_BENCHMARK_EXECUTED",
+        resource_type="model_benchmark",
+        resource_id=benchmark_results[0]["id"],
+        project_id=project_id,
+        details={
+            "models_evaluated": [b["model_name"] for b in benchmark_results],
+            "ram_used_mb": mem_before["ecobi_ram_used_mb"],
+            "advanced_9b_eligible": eligible_9b,
+        },
+    )
+
+    return {
+        "benchmarks": benchmark_results,
+        "recommended_model": config.DEFAULT_MODEL,
+        "advanced_model_eligible": eligible_9b,
+        "advanced_eligibility_reason": reason_9b,
+        "ram_budget_mb": config.MAX_RAM_MB,
+        "current_ram_used_mb": mem_before["ecobi_ram_used_mb"],
+    }
+

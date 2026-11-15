@@ -248,9 +248,65 @@ CREATE TABLE IF NOT EXISTS dataset_mappings (
 CREATE INDEX IF NOT EXISTS idx_dataset_mappings_project ON dataset_mappings(project_id);
 """
 
+MIGRATION_003_SQL = """
+-- Relatórios determinísticos de monitoramento de drift de dados e degradação preditiva (Fase 2)
+CREATE TABLE IF NOT EXISTS drift_reports (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    baseline_dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    target_dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    analysis_id TEXT REFERENCES analyses(id) ON DELETE SET NULL,
+    drift_status TEXT NOT NULL CHECK(drift_status IN ('ESTAVEL', 'ATENCAO_MODERADA', 'DRIFT_CRITICO')),
+    overall_psi REAL NOT NULL DEFAULT 0.0,
+    max_psi REAL NOT NULL DEFAULT 0.0,
+    wape_degradation_pct REAL NOT NULL DEFAULT 0.0,
+    requires_revalidation INTEGER NOT NULL DEFAULT 0 CHECK(requires_revalidation IN (0, 1)),
+    feature_drift_json TEXT NOT NULL DEFAULT '{}',
+    recommendations_json TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_drift_reports_project_id ON drift_reports(project_id);
+CREATE INDEX IF NOT EXISTS idx_drift_reports_created_at ON drift_reports(created_at);
+
+-- Benchmarks comparativos de modelos locais Ollama 4B vs 9B (Fase 2)
+CREATE TABLE IF NOT EXISTS model_benchmarks (
+    id TEXT PRIMARY KEY,
+    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    model_name TEXT NOT NULL,
+    execution_mode TEXT NOT NULL,
+    latency_ms REAL NOT NULL DEFAULT 0.0,
+    ram_used_mb REAL NOT NULL DEFAULT 0.0,
+    ram_peak_mb REAL NOT NULL DEFAULT 0.0,
+    tool_accuracy_pct REAL NOT NULL DEFAULT 100.0,
+    eligible INTEGER NOT NULL DEFAULT 1 CHECK(eligible IN (0, 1)),
+    details_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_benchmarks_model_name ON model_benchmarks(model_name);
+CREATE INDEX IF NOT EXISTS idx_model_benchmarks_created_at ON model_benchmarks(created_at);
+
+-- Snapshots de backup atômico local SQLite com manifesto HMAC-SHA256 (Fase 2)
+CREATE TABLE IF NOT EXISTS system_backups (
+    id TEXT PRIMARY KEY,
+    backup_filename TEXT NOT NULL,
+    backup_path TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL DEFAULT 0,
+    sha256_hash TEXT NOT NULL,
+    hmac_signature TEXT NOT NULL,
+    integrity_status TEXT NOT NULL DEFAULT 'VERIFIED',
+    created_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_system_backups_created_at ON system_backups(created_at);
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "001_initial_schema", MIGRATION_001_SQL),
     (2, "002_sessions_mappings_description", MIGRATION_002_SQL),
+    (3, "003_phase2_drift_backups_benchmarks", MIGRATION_003_SQL),
 ]
 
 # Fatores oficiais de referência deterministicamente cadastrados
@@ -1684,6 +1740,8 @@ def delete_project_cascade(
 
         with transaction(target_conn):
             # Limpeza explícita para garantir expurgo em qualquer cenário
+            target_conn.execute("DELETE FROM drift_reports WHERE project_id = ?;", (project_id,))
+            target_conn.execute("DELETE FROM model_benchmarks WHERE project_id = ?;", (project_id,))
             target_conn.execute("DELETE FROM validations WHERE project_id = ?;", (project_id,))
             target_conn.execute("DELETE FROM powerbi_reports WHERE project_id = ?;", (project_id,))
             target_conn.execute("DELETE FROM analyses WHERE project_id = ?;", (project_id,))
@@ -1766,6 +1824,8 @@ def purge_expired_project_data(
                         pass
 
             with transaction(target_conn):
+                target_conn.execute("DELETE FROM drift_reports WHERE project_id = ?;", (pid,))
+                target_conn.execute("DELETE FROM model_benchmarks WHERE project_id = ?;", (pid,))
                 stats["validations"] += target_conn.execute(
                     "DELETE FROM validations WHERE project_id = ?;", (pid,)
                 ).rowcount
@@ -1805,3 +1865,485 @@ def purge_expired_project_data(
         return _execute(conn)
     with get_db_context() as c:
         return _execute(c)
+
+
+# ============================================================================
+# Fase 2: Monitoramento de Drift, Benchmarks de Modelos, Backups e Multiusuário
+# ============================================================================
+
+def _to_json_str(value: Any, default_str: str = "{}") -> str:
+    """Serializa estruturas Python para string JSON com fallback determinístico."""
+    if value is None:
+        return default_str
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except Exception:
+        return default_str
+
+
+def _from_json_str(raw: Optional[str], default_val: Any = None) -> Any:
+    """Desserializa string JSON do SQLite com fallback seguro."""
+    if not raw:
+        return default_val
+    try:
+        return json.loads(raw)
+    except Exception:
+        return default_val
+
+
+def create_drift_report(
+    project_id: str,
+    drift_status: str,
+    overall_psi: float,
+    max_psi: float,
+    wape_degradation_pct: float = 0.0,
+    requires_revalidation: bool = False,
+    feature_drift: Optional[Dict[str, Any]] = None,
+    recommendations: Optional[List[str]] = None,
+    baseline_dataset_id: Optional[str] = None,
+    target_dataset_id: Optional[str] = None,
+    analysis_id: Optional[str] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Registra um relatório determinístico de monitoramento de drift de dados/modelo."""
+    if drift_status not in ("ESTAVEL", "ATENCAO_MODERADA", "DRIFT_CRITICO"):
+        raise ValueError(f"drift_status inválido: {drift_status}")
+
+    report_id = f"drift_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    feature_json = _to_json_str(feature_drift, "{}")
+    rec_json = _to_json_str(recommendations, "[]")
+    req_reval_int = 1 if requires_revalidation else 0
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO drift_reports (
+                    id, project_id, baseline_dataset_id, target_dataset_id, analysis_id,
+                    drift_status, overall_psi, max_psi, wape_degradation_pct,
+                    requires_revalidation, feature_drift_json, recommendations_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    report_id,
+                    project_id,
+                    baseline_dataset_id,
+                    target_dataset_id,
+                    analysis_id,
+                    drift_status,
+                    float(overall_psi),
+                    float(max_psi),
+                    float(wape_degradation_pct),
+                    req_reval_int,
+                    feature_json,
+                    rec_json,
+                    now,
+                ),
+            )
+        return {
+            "id": report_id,
+            "project_id": project_id,
+            "baseline_dataset_id": baseline_dataset_id,
+            "target_dataset_id": target_dataset_id,
+            "analysis_id": analysis_id,
+            "drift_status": drift_status,
+            "overall_psi": float(overall_psi),
+            "max_psi": float(max_psi),
+            "wape_degradation_pct": float(wape_degradation_pct),
+            "requires_revalidation": bool(req_reval_int),
+            "feature_drift": feature_drift or {},
+            "recommendations": recommendations or [],
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_drift_reports(
+    project_id: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista os relatórios de drift de um projeto ordenados por data decrescente."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = target_conn.execute(
+            "SELECT * FROM drift_reports WHERE project_id = ? ORDER BY created_at DESC;",
+            (project_id,),
+        ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["requires_revalidation"] = bool(d.get("requires_revalidation", 0))
+            d["feature_drift"] = _from_json_str(d.get("feature_drift_json"), {})
+            d["recommendations"] = _from_json_str(d.get("recommendations_json"), [])
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def create_model_benchmark(
+    model_name: str,
+    execution_mode: str,
+    latency_ms: float,
+    ram_used_mb: float,
+    ram_peak_mb: float,
+    tool_accuracy_pct: float,
+    eligible: bool = True,
+    details: Optional[Dict[str, Any]] = None,
+    project_id: Optional[str] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Persiste uma execução de benchmark de modelo local (4B ou 9B)."""
+    bench_id = f"bench_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    details_json = _to_json_str(details, "{}")
+    elig_int = 1 if eligible else 0
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO model_benchmarks (
+                    id, project_id, model_name, execution_mode, latency_ms,
+                    ram_used_mb, ram_peak_mb, tool_accuracy_pct, eligible,
+                    details_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    bench_id,
+                    project_id,
+                    model_name,
+                    execution_mode,
+                    float(latency_ms),
+                    float(ram_used_mb),
+                    float(ram_peak_mb),
+                    float(tool_accuracy_pct),
+                    elig_int,
+                    details_json,
+                    now,
+                ),
+            )
+        return {
+            "id": bench_id,
+            "project_id": project_id,
+            "model_name": model_name,
+            "execution_mode": execution_mode,
+            "latency_ms": float(latency_ms),
+            "ram_used_mb": float(ram_used_mb),
+            "ram_peak_mb": float(ram_peak_mb),
+            "tool_accuracy_pct": float(tool_accuracy_pct),
+            "eligible": bool(elig_int),
+            "details": details or {},
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_model_benchmarks(
+    project_id: Optional[str] = None,
+    limit: int = 50,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista os benchmarks de modelos locais executados."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        if project_id:
+            rows = target_conn.execute(
+                "SELECT * FROM model_benchmarks WHERE project_id = ? ORDER BY created_at DESC LIMIT ?;",
+                (project_id, limit),
+            ).fetchall()
+        else:
+            rows = target_conn.execute(
+                "SELECT * FROM model_benchmarks ORDER BY created_at DESC LIMIT ?;",
+                (limit,),
+            ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["eligible"] = bool(d.get("eligible", 1))
+            d["details"] = _from_json_str(d.get("details_json"), {})
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def create_database_backup(
+    actor: str = "system",
+    backup_dir: Optional[Union[str, Path]] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Realiza backup atômico online do banco SQLite com hash SHA-256 e assinatura HMAC."""
+    backup_id = f"bkp_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+    ts_slug = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"ecobi_backup_{ts_slug}_{backup_id}.db"
+
+    if backup_dir is not None:
+        dest_dir = Path(backup_dir).resolve()
+    else:
+        db_p = os.getenv("ECOBI_DB_PATH", DEFAULT_DB_PATH)
+        if db_p == ":memory:":
+            dest_dir = (Path(__file__).resolve().parent.parent / "data" / "backups").resolve()
+        else:
+            dest_dir = (Path(db_p).resolve().parent / "backups").resolve()
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_dir / filename
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        bkp_conn = sqlite3.connect(str(dest_file))
+        try:
+            target_conn.backup(bkp_conn)
+        finally:
+            bkp_conn.close()
+
+        file_bytes = dest_file.read_bytes()
+        file_size = len(file_bytes)
+        sha256_hex = hashlib.sha256(file_bytes).hexdigest()
+        hmac_sig = hmac.new(
+            LOCAL_SECRET.encode("utf-8"),
+            f"{backup_id}:{filename}:{sha256_hex}".encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO system_backups (
+                    id, backup_filename, backup_path, file_size_bytes,
+                    sha256_hash, hmac_signature, integrity_status, created_by, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    backup_id,
+                    filename,
+                    str(dest_file),
+                    file_size,
+                    sha256_hex,
+                    hmac_sig,
+                    "VERIFIED",
+                    actor,
+                    now,
+                ),
+            )
+            log_audit(
+                actor=actor,
+                action="SQLITE_BACKUP_CREATED",
+                resource_type="system_backup",
+                resource_id=backup_id,
+                details={
+                    "backup_filename": filename,
+                    "file_size_bytes": file_size,
+                    "sha256_hash": sha256_hex,
+                },
+                conn=target_conn,
+            )
+
+        return {
+            "id": backup_id,
+            "backup_filename": filename,
+            "backup_path": str(dest_file),
+            "file_size_bytes": file_size,
+            "sha256_hash": sha256_hex,
+            "hmac_signature": hmac_sig,
+            "integrity_status": "VERIFIED",
+            "created_by": actor,
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_database_backups(
+    limit: int = 50,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista os backups registrados no sistema."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = target_conn.execute(
+            "SELECT * FROM system_backups ORDER BY created_at DESC LIMIT ?;",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def verify_database_backup(
+    backup_id: str,
+    actor: str = "system",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Verifica integridade física, hash SHA-256, assinatura HMAC e PRAGMA integrity_check de um backup."""
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        row = target_conn.execute(
+            "SELECT * FROM system_backups WHERE id = ?;", (backup_id,)
+        ).fetchone()
+        if not row:
+            raise ValueError(f"Backup '{backup_id}' não encontrado.")
+
+        rec = dict(row)
+        bkp_path = Path(rec["backup_path"])
+        discrepancies: List[str] = []
+
+        if not bkp_path.exists() or not bkp_path.is_file():
+            discrepancies.append("Arquivo físico de backup não encontrado no disco.")
+            actual_sha256 = ""
+            pragma_status = "MISSING"
+        else:
+            file_bytes = bkp_path.read_bytes()
+            actual_sha256 = hashlib.sha256(file_bytes).hexdigest()
+            if actual_sha256 != rec["sha256_hash"]:
+                discrepancies.append("Divergência de hash SHA-256 detectada (possível adulteração ou corrupção).")
+
+            expected_hmac = hmac.new(
+                LOCAL_SECRET.encode("utf-8"),
+                f"{rec['id']}:{rec['backup_filename']}:{actual_sha256}".encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
+            if not hmac.compare_digest(expected_hmac, rec["hmac_signature"]):
+                discrepancies.append("Assinatura criptográfica HMAC-SHA256 inválida.")
+
+            try:
+                chk_conn = sqlite3.connect(str(bkp_path))
+                try:
+                    pragma_row = chk_conn.execute("PRAGMA integrity_check;").fetchone()
+                    pragma_status = str(pragma_row[0]) if pragma_row else "unknown"
+                    if pragma_status.lower() != "ok":
+                        discrepancies.append(f"Falha no PRAGMA integrity_check: {pragma_status}")
+                finally:
+                    chk_conn.close()
+            except Exception as exc:
+                pragma_status = f"error: {exc}"
+                discrepancies.append(f"Arquivo SQLite inválido ou corrompido: {exc}")
+
+        is_valid = len(discrepancies) == 0
+        new_status = "VERIFIED" if is_valid else "CORRUPTED"
+
+        with transaction(target_conn):
+            target_conn.execute(
+                "UPDATE system_backups SET integrity_status = ? WHERE id = ?;",
+                (new_status, backup_id),
+            )
+            log_audit(
+                actor=actor,
+                action="SQLITE_BACKUP_VERIFIED",
+                resource_type="system_backup",
+                resource_id=backup_id,
+                details={
+                    "valid": is_valid,
+                    "integrity_status": new_status,
+                    "pragma_integrity_check": pragma_status,
+                    "discrepancies": discrepancies,
+                },
+                conn=target_conn,
+            )
+
+        return {
+            "backup_id": backup_id,
+            "valid": is_valid,
+            "integrity_status": new_status,
+            "sha256_verified": actual_sha256 == rec["sha256_hash"],
+            "hmac_verified": is_valid,
+            "pragma_integrity_check": pragma_status,
+            "discrepancies": discrepancies,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_users_safe(conn: Optional[sqlite3.Connection] = None) -> List[Dict[str, Any]]:
+    """Lista os usuários locais cadastrados sem expor api_token_hash."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = target_conn.execute(
+            "SELECT id, username, role, created_at FROM users ORDER BY created_at ASC;"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def create_user_account(
+    username: str,
+    role: str = "analyst",
+    actor: str = "admin",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Cria um novo usuário local com papel RBAC validado e token PBKDF2-HMAC-SHA256."""
+    clean_username = (username or "").strip()
+    if len(clean_username) < 2:
+        raise ValueError("Nome de usuário deve ter pelo menos 2 caracteres.")
+    role_norm = (role or "analyst").strip().lower()
+    if role_norm not in ("admin", "analyst", "validator", "viewer"):
+        raise ValueError(f"Papel RBAC inválido: '{role}'. Permitidos: admin, analyst, validator, viewer.")
+
+    raw_token = f"ecobi_{role_norm}_{secrets.token_urlsafe(24)}"
+    token_hash = hash_api_token(raw_token)
+    user_id = f"usr_{uuid.uuid4().hex[:12]}"
+    now = utc_now_iso()
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        existing = target_conn.execute(
+            "SELECT id FROM users WHERE LOWER(username) = LOWER(?);", (clean_username,)
+        ).fetchone()
+        if existing:
+            raise ValueError(f"Já existe um usuário cadastrado com o username '{clean_username}'.")
+
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO users (id, username, role, api_token_hash, created_at)
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (user_id, clean_username, role_norm, token_hash, now),
+            )
+            log_audit(
+                actor=actor,
+                action="USER_ACCOUNT_CREATED",
+                resource_type="user",
+                resource_id=user_id,
+                details={"username": clean_username, "role": role_norm},
+                conn=target_conn,
+            )
+
+        return {
+            "id": user_id,
+            "username": clean_username,
+            "role": role_norm,
+            "api_token": raw_token,
+            "created_at": now,
+        }
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+

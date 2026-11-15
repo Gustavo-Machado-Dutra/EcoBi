@@ -40,6 +40,7 @@ from backend import config, database, memory_guard, security
 from backend.services import (
     analytics,
     data_quality,
+    drift_monitor,
     llm_agent,
     powerbi_generator,
     predictive,
@@ -1140,6 +1141,187 @@ def list_audit_logs_endpoint(
     _get_project_or_404(project_id)
     logs = database.list_audit_logs(project_id=project_id, limit=limit)
     return {"logs": logs, "count": len(logs)}
+
+
+# ============================================================================
+# Fase 2: Monitoramento de Drift, Benchmark LLM, Backups SQLite e Multiusuário
+# ============================================================================
+
+class DriftAnalyzeRequest(BaseModel):
+    baseline_dataset_id: Optional[str] = None
+    target_dataset_id: Optional[str] = None
+    analysis_id: Optional[str] = None
+    synthetic_shift_factor: Optional[float] = None
+
+
+class ModelBenchmarkRequest(BaseModel):
+    project_id: Optional[str] = None
+
+
+class ModelUnloadRequest(BaseModel):
+    model_name: Optional[str] = None
+
+
+class UserCreateRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=80)
+    role: str = Field(default="analyst")
+
+
+@app.post("/api/projects/{project_id}/drift/analyze")
+def analyze_drift_endpoint(
+    project_id: str,
+    payload: DriftAnalyzeRequest = Body(default=DriftAnalyzeRequest()),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst", "validator"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    _get_project_or_404(project_id)
+    try:
+        return drift_monitor.run_drift_analysis(
+            project_id=project_id,
+            baseline_dataset_id=payload.baseline_dataset_id,
+            target_dataset_id=payload.target_dataset_id,
+            analysis_id=payload.analysis_id,
+            synthetic_shift_factor=payload.synthetic_shift_factor,
+            actor=session.get("operator_name", "analyst"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/projects/{project_id}/drift/reports")
+def list_drift_reports_endpoint(
+    project_id: str,
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    _get_project_or_404(project_id)
+    reports = database.list_drift_reports(project_id)
+    return {"reports": reports, "count": len(reports)}
+
+
+@app.post("/api/system/model-benchmark")
+async def run_model_benchmark_endpoint(
+    payload: Optional[ModelBenchmarkRequest] = Body(default=None),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    pid = payload.project_id if payload else None
+    return await llm_agent.run_local_model_benchmark(
+        project_id=pid,
+        actor=session.get("operator_name", "analyst"),
+    )
+
+
+@app.get("/api/system/model-benchmarks")
+def list_model_benchmarks_endpoint(
+    project_id: Optional[str] = Query(default=None),
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    benchmarks = database.list_model_benchmarks(project_id=project_id)
+    return {"benchmarks": benchmarks, "count": len(benchmarks)}
+
+
+@app.post("/api/settings/model/unload")
+async def unload_model_endpoint(
+    payload: Optional[ModelUnloadRequest] = Body(default=None),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    m_name = payload.model_name if payload else None
+    return await llm_agent.unload_idle_ollama_model(
+        model_name=m_name,
+        actor=session.get("operator_name", "analyst"),
+    )
+
+
+@app.post("/api/system/backups", status_code=status.HTTP_201_CREATED)
+def create_backup_endpoint(
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    return database.create_database_backup(actor=session.get("operator_name", "analyst"))
+
+
+@app.get("/api/system/backups")
+def list_backups_endpoint(
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    backups = database.list_database_backups()
+    return {"backups": backups, "count": len(backups)}
+
+
+@app.post("/api/system/backups/{backup_id}/verify")
+def verify_backup_endpoint(
+    backup_id: str,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst", "validator"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    try:
+        return database.verify_database_backup(
+            backup_id=backup_id,
+            actor=session.get("operator_name", "validator"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@app.get("/api/users")
+def list_users_endpoint(
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    users = database.list_users_safe()
+    return {"users": users, "count": len(users)}
+
+
+@app.post("/api/users", status_code=status.HTTP_201_CREATED)
+def create_user_endpoint(
+    payload: UserCreateRequest,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    try:
+        return database.create_user_account(
+            username=payload.username,
+            role=payload.role,
+            actor=session.get("operator_name", "admin"),
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        code = status.HTTP_409_CONFLICT if "já existe" in msg.lower() else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=code, detail=msg) from exc
+
+
+@app.get("/api/sectors/benchmarks")
+def get_sector_benchmarks_endpoint(
+    sector: Optional[str] = Query(default=None),
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    if sector:
+        return {"sector_benchmark": config.get_sector_benchmark(sector)}
+    return {"sectors": config.SECTOR_BENCHMARKS, "count": len(config.SECTOR_BENCHMARKS)}
 
 
 # ============================================================================
