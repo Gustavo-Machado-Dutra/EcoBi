@@ -1361,7 +1361,6 @@ class LoraEvaluateRequest(BaseModel):
     adapter_name: Optional[str] = None
     base_model: Optional[str] = None
     simulated_ram_overhead_mb: Optional[float] = None
-    simulate_low_quality: bool = False
     project_id: Optional[str] = None
 
 
@@ -1519,7 +1518,6 @@ async def evaluate_lora_endpoint(
             adapter_name=payload.adapter_name,
             base_model=payload.base_model,
             simulated_ram_overhead_mb=payload.simulated_ram_overhead_mb,
-            simulate_low_quality=payload.simulate_low_quality,
             project_id=payload.project_id,
             actor=session.get("operator_name", "analyst"),
         )
@@ -1536,6 +1534,13 @@ def list_lora_evaluations_endpoint(
     _session: Dict[str, Any] = Depends(get_current_session),
 ) -> Dict[str, Any]:
     items = database.list_lora_evaluations(project_id=project_id, sector=sector)
+    for it in items:
+        if it.get("metrics", {}).get("runtime_available") is False:
+            it["evaluation_status"] = it["metrics"].get("status", "INCONCLUSIVO_RUNTIME_INDISPONIVEL")
+            it["tool_accuracy_pct"] = None
+            it["domain_fidelity_score"] = None
+            it["deterministic_alignment_score"] = None
+            it["latency_ms"] = None
     return {"evaluations": items, "count": len(items)}
 
 
