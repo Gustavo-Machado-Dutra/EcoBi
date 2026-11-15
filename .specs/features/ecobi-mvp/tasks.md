@@ -103,8 +103,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] Settings load deterministically with safe local defaults
-- [ ] External AI endpoints blocked by default
+- [x] Settings load deterministically with safe local defaults
+- [x] External AI endpoints blocked by default
 
 **Tests**: unit
 **Gate**: quick
@@ -117,8 +117,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-11
 
 **Done when**:
-- [ ] Session auth rejects invalid/missing tokens and checks LGPD consent
-- [ ] PII masked and prompt injection markers neutralized
+- [x] Session auth rejects invalid/missing tokens and checks LGPD consent
+- [x] PII masked and prompt injection markers neutralized
 
 **Tests**: unit
 **Gate**: quick
@@ -131,8 +131,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-12
 
 **Done when**:
-- [ ] Reports real EcoBI RSS and host available RAM via `psutil`
-- [ ] Blocks heavy tasks or `qwen3.5:9b` when headroom is insufficient
+- [x] Reports real EcoBI RSS and host available RAM via `psutil`
+- [x] Blocks heavy tasks or `qwen3.5:9b` when headroom is insufficient
 
 **Tests**: unit
 **Gate**: quick
@@ -145,8 +145,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-03, ECOBI-04
 
 **Done when**:
-- [ ] Corrupted/invalid uploads fail cleanly without mutating DB
-- [ ] Suspect outliers preserved and flagged in quality report
+- [x] Corrupted/invalid uploads fail cleanly without mutating DB
+- [x] Suspect outliers preserved and flagged in quality report
 
 **Tests**: unit
 **Gate**: quick
@@ -159,8 +159,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-05
 
 **Done when**:
-- [ ] All financial and ESG metrics match deterministic formulas
-- [ ] Carbon credits never subtracted silently from gross emissions
+- [x] All financial and ESG metrics match deterministic formulas
+- [x] Carbon credits never subtracted silently from gross emissions
 
 **Tests**: unit
 **Gate**: quick
@@ -173,8 +173,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-07
 
 **Done when**:
-- [ ] Separates historical, forecast, simulated, and observed outputs
-- [ ] Rejects invalid parameter bounds
+- [x] Separates historical, forecast, simulated, and observed outputs
+- [x] Rejects invalid parameter bounds
 
 **Tests**: unit
 **Gate**: quick
@@ -187,8 +187,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-06
 
 **Done when**:
-- [ ] Zero data leakage across chronological splits
-- [ ] Reports MAE, RMSE, WAPE, bias, baseline comparison, and intervals
+- [x] Zero data leakage across chronological splits
+- [x] Reports MAE, RMSE, WAPE, bias, baseline comparison, and intervals
 
 **Tests**: unit
 **Gate**: quick
@@ -201,8 +201,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-09
 
 **Done when**:
-- [ ] Independent recalculation catches math discrepancies
-- [ ] REJEITADO strictly blocks Power BI publication
+- [x] Independent recalculation catches math discrepancies
+- [x] REJEITADO strictly blocks Power BI publication
 
 **Tests**: unit
 **Gate**: quick
@@ -215,8 +215,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-08
 
 **Done when**:
-- [ ] Enforces strict 6-tool allowlist and Pydantic parameter checks
-- [ ] Handles Ollama offline gracefully without external calls
+- [x] Enforces strict 6-tool allowlist and Pydantic parameter checks
+- [x] Handles Ollama offline gracefully without external calls
 
 **Tests**: unit
 **Gate**: quick
@@ -229,8 +229,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-10
 
 **Done when**:
-- [ ] Refuses generation when any selected analysis is REJEITADO
-- [ ] Structural validator verifies PBIP/PBIR files, DAX measures, theme palette, and numeric reconciliation
+- [x] Refuses generation when any selected analysis is REJEITADO
+- [x] Structural validator verifies PBIP/PBIR files, DAX measures, theme palette, and numeric reconciliation
 
 **Tests**: unit
 **Gate**: quick
@@ -243,8 +243,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-02, ECOBI-08, ECOBI-09, ECOBI-10, ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] All 10 screens present with accessible headings, labels, and landmarks
-- [ ] Zero inert decorative buttons
+- [x] All 10 screens present with accessible headings, labels, and landmarks
+- [x] Zero inert decorative buttons
 
 **Tests**: integration
 **Gate**: full
@@ -257,8 +257,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-02
 
 **Done when**:
-- [ ] Official palette tokens applied consistently
-- [ ] No horizontal overflow on desktop or 390px mobile
+- [x] Official palette tokens applied consistently
+- [x] No horizontal overflow on desktop or 390px mobile
 
 **Tests**: integration
 **Gate**: full
@@ -273,8 +273,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-03, ECOBI-04, ECOBI-05, ECOBI-06, ECOBI-07, ECOBI-08, ECOBI-09, ECOBI-10, ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] End-to-end user flows execute against live FastAPI backend
-- [ ] Error and empty states render clearly
+- [x] End-to-end user flows execute against live FastAPI backend
+- [x] Error and empty states render clearly
 
 **Tests**: integration
 **Gate**: full
@@ -287,8 +287,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-02, ECOBI-03, ECOBI-04, ECOBI-05, ECOBI-06, ECOBI-07, ECOBI-08, ECOBI-09, ECOBI-10, ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] All endpoints respond with contracted schemas and HTTP status codes
-- [ ] `uvicorn backend.main:app` boots cleanly
+- [x] All endpoints respond with contracted schemas and HTTP status codes
+- [x] `uvicorn backend.main:app` boots cleanly
 
 **Tests**: integration
 **Gate**: full
@@ -301,7 +301,7 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-03, ECOBI-04, ECOBI-05, ECOBI-06, ECOBI-07
 
 **Done when**:
-- [ ] All unit tests for ingestion, quality, financial/ESG, predictive, and simulation pass
+- [x] All unit tests for ingestion, quality, financial/ESG, predictive, and simulation pass
 
 **Tests**: unit
 **Gate**: full
@@ -314,7 +314,7 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-08, ECOBI-09, ECOBI-10, ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] Full pytest suite passes with zero skipped or weakened assertions
+- [x] Full pytest suite passes with zero skipped or weakened assertions
 
 **Tests**: integration
 **Gate**: full
@@ -327,8 +327,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-01, ECOBI-08, ECOBI-09, ECOBI-10, ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] Browser screenshots/snapshots verified for desktop and mobile
-- [ ] Independent review approved with zero blocking defects
+- [x] Browser screenshots/snapshots verified for desktop and mobile
+- [x] Independent review approved with zero blocking defects
 
 **Tests**: integration
 **Gate**: build
@@ -341,8 +341,8 @@ T15 -> T16 -> T17 -> T18 -> T19 -> T20
 **Requirement**: ECOBI-11, ECOBI-12
 
 **Done when**:
-- [ ] README accurately reflects implemented commands, endpoints, RAM metrics, and external limitations
-- [ ] `validate_verification.py ecobi-mvp` passes
+- [x] README accurately reflects implemented commands, endpoints, RAM metrics, and external limitations
+- [x] `validate_verification.py ecobi-mvp` passes
 
 **Tests**: none
 **Gate**: build
@@ -391,6 +391,6 @@ Proof: run unit | PASSED tests/test_security_memory_api.py::test_memory_budget_p
 
 ## Handoff
 
-**Settled mid-build:** none
-**Dispatched:** Round 1 Architect + DB Engineer completed spec, design, schema, and sample CSVs.
-**Walked:** pending browser verification after integration.
+**Settled mid-build:** API contract alignment (`res["result"]`, `bundle_path`, `reconciliation_tolerance`, `purged_project_ids`) and PBIP `definition.pbism` version `"1.0"` synchronized with QA suite.
+**Dispatched:** Round 1–3 completed across all 8 specialized Maestri agents (`T1`–`T20`).
+**Walked:** 21/21 automated Pytest checks (`C1`–`C12`), 10 UI screens, and RAM governance (`170.24 MB` / `8192.0 MB`) verified and documented in `verification.md`.

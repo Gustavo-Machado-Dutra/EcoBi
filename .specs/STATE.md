@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: ecobi-mvp
-- **Phase / Task**: Rodada 1 - Especificação e Arquitetura do MVP concluídas
-- **Completed**: .specs/STATE.md, .specs/features/ecobi-mvp/spec.md, .specs/features/ecobi-mvp/design.md
+- **Phase / Task**: Rodada 3 - Integração, Suíte Automatizada Pytest (C1-C12), Verificação UI/UX e Documentação Concluídas (T1 a T20 100%)
+- **Completed**: `backend/*`, `frontend/*`, `samples/*`, `tests/*`, `README.md`, `.specs/features/ecobi-mvp/spec.md`, `.specs/features/ecobi-mvp/design.md`, `.specs/features/ecobi-mvp/tasks.md`, `.specs/features/ecobi-mvp/verification.md`
 - **In-progress** (file:line): none
-- **Next step**: Maestro distribuir tarefas de implementação do backend e frontend na Rodada 2
+- **Next step**: MVP 100% concluído, validado (`21 passed, 0 failed`) e pronto para operação local ou avaliação em banca
 - **Blockers**: none
-- **Uncommitted files**: .specs/STATE.md, .specs/features/ecobi-mvp/spec.md, .specs/features/ecobi-mvp/design.md
+- **Uncommitted files**: none
 - **Branch**: main

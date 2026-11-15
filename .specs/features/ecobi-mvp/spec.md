@@ -12,14 +12,14 @@ O EcoBI Intelligence soluciona esse problema fornecendo uma plataforma corporati
 
 ## Goals
 
-- [ ] Permitir a ingestão local de arquivos tabulares nos formatos CSV e Excel com perfilamento automático de schema, qualidade e chunking para arquivos grandes.
-- [ ] Executar cálculos determinísticos de KPIs financeiros (receitas, custos, margens, EBITDA) e indicadores ESG (emissões de GEE Escopos 1, 2 e 3 baseadas no GHG Protocol, consumo de água, energia, taxa de reciclagem e devoluções).
-- [ ] Treinar e avaliar modelos preditivos com Scikit-learn utilizando divisão temporal obrigatória, mensuração de MAE, RMSE e WAPE comparados a um naive baseline e cálculo de intervalos de incerteza estatística.
-- [ ] Simular cenários de impacto What-If sobre receitas, custos operacionais, pegada de carbono e eficiência logística com explicabilidade das premissas utilizadas.
-- [ ] Integrar o modelo local Qwen3.5 (4B padrão, 9B opcional) via Ollama REST API exclusivamente para interpretação de linguagem natural e seleção de ferramentas em uma allowlist estrita de 6 tools, proibindo cálculos matemáticos diretos pela LLM.
-- [ ] Aplicar governança automática via Validation Engine determinístico com classificação em APROVADO, APROVADO_COM_RESSALVAS e REJEITADO, bloqueando estritamente a publicação de relatórios contendo análises rejeitadas.
-- [ ] Gerar automaticamente estruturas completas de projetos Power BI Desktop no formato moderno PBIP/PBIR com modelo semântico tabular, medidas DAX e layout visual pronto para abertura e revisão local.
-- [ ] Garantir operação local com consumo de memória RAM do EcoBI estritamente limitado a 8 GB (8192 MB) com medição real via psutil, logs de auditoria imutáveis em SQLite e proteção LGPD.
+- [x] Permitir a ingestão local de arquivos tabulares nos formatos CSV e Excel com perfilamento automático de schema, qualidade e chunking para arquivos grandes.
+- [x] Executar cálculos determinísticos de KPIs financeiros (receitas, custos, margens, EBITDA) e indicadores ESG (emissões de GEE Escopos 1, 2 e 3 baseadas no GHG Protocol, consumo de água, energia, taxa de reciclagem e devoluções).
+- [x] Treinar e avaliar modelos preditivos com Scikit-learn utilizando divisão temporal obrigatória, mensuração de MAE, RMSE e WAPE comparados a um naive baseline e cálculo de intervalos de incerteza estatística.
+- [x] Simular cenários de impacto What-If sobre receitas, custos operacionais, pegada de carbono e eficiência logística com explicabilidade das premissas utilizadas.
+- [x] Integrar o modelo local Qwen3.5 (4B padrão, 9B opcional) via Ollama REST API exclusivamente para interpretação de linguagem natural e seleção de ferramentas em uma allowlist estrita de 6 tools, proibindo cálculos matemáticos diretos pela LLM.
+- [x] Aplicar governança automática via Validation Engine determinístico com classificação em APROVADO, APROVADO_COM_RESSALVAS e REJEITADO, bloqueando estritamente a publicação de relatórios contendo análises rejeitadas.
+- [x] Gerar automaticamente estruturas completas de projetos Power BI Desktop no formato moderno PBIP/PBIR com modelo semântico tabular, medidas DAX e layout visual pronto para abertura e revisão local.
+- [x] Garantir operação local com consumo de memória RAM do EcoBI estritamente limitado a 8 GB (8192 MB) com medição real via psutil, logs de auditoria imutáveis em SQLite e proteção LGPD.
 
 ## Out of Scope
 
@@ -194,18 +194,18 @@ O EcoBI Intelligence soluciona esse problema fornecendo uma plataforma corporati
 
 | Requirement ID | Description | Component | Status |
 | --- | --- | --- | --- |
-| ECOBI-01 | Autenticação de Sessão Local e Consentimento LGPD | backend/auth | In Design |
-| ECOBI-02 | Gestão de Projetos e Contexto Corporativo | backend/projects | In Design |
-| ECOBI-03 | Ingestão de Datasets Tabulares CSV/XLSX com Chunking | backend/datasets | In Design |
-| ECOBI-04 | Perfilamento de Qualidade de Dados e Mapeamento de Schema | backend/quality | In Design |
-| ECOBI-05 | Motor Determinístico Financeiro e ESG (Escopos GEE) | backend/analytics | In Design |
-| ECOBI-06 | Modelagem Preditiva com Divisão Temporal e Baseline | backend/predictive | In Design |
-| ECOBI-07 | Simulador de Impacto e Cenários What-If | backend/simulator | In Design |
-| ECOBI-08 | Orquestrador de Assistente com Tool Calling Estrito no Ollama | backend/assistant | In Design |
-| ECOBI-09 | Central de Validação Automatizada e Portão de Publicação | backend/validation | In Design |
-| ECOBI-10 | Geração Automatizada de Projetos Power BI PBIP/PBIR | backend/powerbi | In Design |
-| ECOBI-11 | Trilha de Auditoria Imutável e Governança LGPD | backend/audit | In Design |
-| ECOBI-12 | Monitor de Orçamento de Memória psutil e Gestão de Modelos | backend/system | In Design |
+| ECOBI-01 | Autenticação de Sessão Local e Consentimento LGPD | backend/auth | Verified |
+| ECOBI-02 | Gestão de Projetos e Contexto Corporativo | backend/projects | Verified |
+| ECOBI-03 | Ingestão de Datasets Tabulares CSV/XLSX com Chunking | backend/datasets | Verified |
+| ECOBI-04 | Perfilamento de Qualidade de Dados e Mapeamento de Schema | backend/quality | Verified |
+| ECOBI-05 | Motor Determinístico Financeiro e ESG (Escopos GEE) | backend/analytics | Verified |
+| ECOBI-06 | Modelagem Preditiva com Divisão Temporal e Baseline | backend/predictive | Verified |
+| ECOBI-07 | Simulador de Impacto e Cenários What-If | backend/simulator | Verified |
+| ECOBI-08 | Orquestrador de Assistente com Tool Calling Estrito no Ollama | backend/assistant | Verified |
+| ECOBI-09 | Central de Validação Automatizada e Portão de Publicação | backend/validation | Verified |
+| ECOBI-10 | Geração Automatizada de Projetos Power BI PBIP/PBIR | backend/powerbi | Verified |
+| ECOBI-11 | Trilha de Auditoria Imutável e Governança LGPD | backend/audit | Verified |
+| ECOBI-12 | Monitor de Orçamento de Memória psutil e Gestão de Modelos | backend/system | Verified |
 
 ## Sources
 
