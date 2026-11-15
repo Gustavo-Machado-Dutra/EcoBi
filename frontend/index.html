@@ -800,6 +800,20 @@
               </div>
             </form>
           </article>
+
+          <!-- Painel Fase 3: Conectores Corporativos Somente-Leitura & Ingestão Incremental -->
+          <article class="surface-panel" id="quality-connectors-panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Conectores Corporativos Somente-Leitura &amp; Ingestão Incremental</h2>
+                <p class="panel-subtitle"><code>POST /api/projects/{id}/connectors</code> · Suporte a SQLite externo (<code>mode=ro</code>), PostgreSQL Read-Only e diretórios monitorados com linhagem SHA-256.</p>
+              </div>
+              <div class="panel-header-actions">
+                <button type="button" id="btn-sync-watched-samples" class="btn btn-secondary btn-sm">Sincronizar Conector Somente-Leitura</button>
+              </div>
+            </div>
+            <div id="connector-sync-feedback" class="inline-feedback" aria-live="polite"></div>
+          </article>
         </section>
 
         <!-- ================================================================
@@ -1159,6 +1173,7 @@
               </div>
               <div class="panel-header-actions">
                 <button type="button" id="btn-run-drift-analysis" class="btn btn-secondary btn-sm">Executar Análise de Drift (PSI)</button>
+                <button type="button" id="btn-propose-recalibration" class="btn btn-primary btn-sm">Propor Recalibração Assistida</button>
               </div>
             </div>
             <div id="drift-analysis-feedback" class="inline-feedback" aria-live="polite"></div>
@@ -1590,6 +1605,7 @@
                   <button type="button" id="btn-unload-model-idle" class="btn btn-secondary btn-sm">Descarregar da RAM (Idle)</button>
                   <button type="button" id="btn-run-model-benchmark" class="btn btn-secondary btn-sm">Benchmark 4B vs 9B</button>
                 </div>
+                <button type="button" id="btn-evaluate-lora" class="btn btn-secondary btn-block">Avaliar Adaptador LoRA Setorial (Experimental)</button>
               </form>
             </article>
 

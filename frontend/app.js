@@ -3009,6 +3009,80 @@
         setInlineFeedback("lgpd-purge-feedback", `Erro ao criar backup SQLite: ${err.message}`, true);
       }
     });
+
+    // Controles Fase 3: Conectores Somente-Leitura, Recalibração Assistida e Avaliação Experimental LoRA
+    document.getElementById("btn-sync-watched-samples")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        setInlineFeedback("connector-sync-feedback", "Selecione um projeto ativo para registrar e sincronizar um conector.", true);
+        return;
+      }
+      try {
+        setInlineFeedback("connector-sync-feedback", "Registrando e sincronizando conector somente-leitura...");
+        const connRes = await apiRequest(`/api/projects/${encodeURIComponent(state.activeProjectId)}/connectors`, {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Diretório Corporativo Monitorado (Samples)",
+            connector_type: "watched_directory",
+            config: { directory_path: "samples" },
+            query_or_table: "*.csv",
+            watermark_column: "periodo",
+          }),
+        });
+        const syncRes = await apiRequest(
+          `/api/projects/${encodeURIComponent(state.activeProjectId)}/connectors/${encodeURIComponent(connRes.id)}/sync`,
+          { method: "POST", body: JSON.stringify({}) }
+        );
+        setInlineFeedback(
+          "connector-sync-feedback",
+          `Conector '${connRes.name}' sincronizado: status=${syncRes.run_status} (${syncRes.rows_ingested} linhas ingeridas, SHA-256=${String(syncRes.source_sha256 || "").slice(0, 12)}...).`
+        );
+        showToast(`Ingestão incremental concluída (${syncRes.run_status}).`);
+        await loadDatasets();
+      } catch (err) {
+        setInlineFeedback("connector-sync-feedback", `Erro no conector: ${err.message}`, true);
+      }
+    });
+
+    document.getElementById("btn-propose-recalibration")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        setInlineFeedback("drift-analysis-feedback", "Selecione um projeto ativo antes de propor recalibração.", true);
+        return;
+      }
+      try {
+        setInlineFeedback("drift-analysis-feedback", "Executando proposta de recalibração assistida e backtesting...");
+        const res = await apiRequest(`/api/projects/${encodeURIComponent(state.activeProjectId)}/recalibrations/propose`, {
+          method: "POST",
+          body: JSON.stringify({ target_column: "receita_bruta", candidate_model_type: "ridge", forecast_horizon: 6 }),
+        });
+        setInlineFeedback(
+          "drift-analysis-feedback",
+          `Proposta ${res.id}: WAPE Incumbente=${formatNumber(res.incumbent_wape, 2)}% vs Candidato=${formatNumber(res.candidate_wape, 2)}% | Validação=${res.validation_status} | Governança=${res.governance_status}.`
+        );
+        showToast(`Proposta de recalibração criada (${res.governance_status}).`);
+      } catch (err) {
+        setInlineFeedback("drift-analysis-feedback", `Erro na recalibração assistida: ${err.message}`, true);
+      }
+    });
+
+    document.getElementById("btn-evaluate-lora")?.addEventListener("click", async () => {
+      try {
+        const activeProj = state.projects.find((p) => p.id === state.activeProjectId);
+        const sectorName = activeProj?.sector || "Varejo";
+        setInlineFeedback("model-settings-feedback", `Avaliando adaptador LoRA experimental para o setor '${sectorName}'...`);
+        const res = await apiRequest("/api/system/lora/evaluate", {
+          method: "POST",
+          body: JSON.stringify({ sector: sectorName, project_id: state.activeProjectId || null }),
+        });
+        setInlineFeedback(
+          "model-settings-feedback",
+          `LoRA ${res.adapter_name} (${res.sector}): ${res.evaluation_status} | Tool Acc=${res.tool_accuracy_pct}% | Alinhamento=${res.deterministic_alignment_score}% | RAM Pico=${res.ram_peak_mb} MB.`
+        );
+        showToast(`Avaliação experimental LoRA concluída: ${res.evaluation_status}`);
+        await loadAuditLogs(true);
+      } catch (err) {
+        setInlineFeedback("model-settings-feedback", `Erro na avaliação LoRA: ${err.message}`, true);
+      }
+    });
   }
 
   async function initApp() {
