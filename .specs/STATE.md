@@ -77,10 +77,10 @@
 ## Handoff
 
 - **Feature**: ecobi-phase2
-- **Phase / Task**: Fase 2 do Roadmap (Monitoramento de Drift, Benchmark LLM & Unload Ocioso, Backup SQLite HMAC-SHA256 e Governança Multiusuário/Multi-Setor - T21 a T28)
-- **Completed**: MVP `ecobi-mvp` (T1 a T20, 21 passed) + Especificação e Design da Fase 2 (`.specs/features/ecobi-phase2/spec.md`, `design.md`, `tasks.md`)
-- **In-progress** (file:line): T21 a T28
-- **Next step**: Execução coordenada de T21 a T28 com delegação especializada e validação Pytest
+- **Phase / Task**: Concluído (MVP T1–T20 + Fase 2 T21–T28 100% implementados, integrados e verificados com 25/25 testes aprovados)
+- **Completed**: T1 a T28 (MVP completo + Monitoramento de Drift PSI/WAPE, Benchmark LLM 4B vs 9B & Unload Ocioso, Backup Online SQLite HMAC-SHA256 e Governança Multiusuário RBAC / Benchmarks Multi-Setoriais)
+- **In-progress** (file:line): none
+- **Next step**: Fase 3 do Roadmap (Conectores corporativos ERP/PostgreSQL somente-leitura, agendamento automatizado de backups/recalibração e avaliação experimental de adaptadores LoRA locais)
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/ecobi-phase2/*`
+- **Uncommitted files**: none
 - **Branch**: main

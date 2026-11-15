@@ -53,7 +53,7 @@ Com o MVP do **EcoBI Intelligence** (`T1` a `T20`) 100% concluído e validado (`
 
 | Requirement ID | Description | Component | Status |
 |---|---|---|---|
-| `ECOBI-13` | Monitoramento de Drift (PSI, KS/Desvio Relativo e Degradação WAPE) | `backend/services/drift_monitor.py` | In Progress |
-| `ECOBI-14` | Benchmark de Modelos Locais (4B vs 9B) e Descarregamento Ocioso (`keep_alive=0`) | `backend/services/llm_agent.py`, `backend/memory_guard.py` | In Progress |
-| `ECOBI-15` | Backup Atômico SQLite com Manifesto HMAC-SHA256 e Verificação de Integridade | `backend/database.py` | In Progress |
-| `ECOBI-16` | Gestão Multiusuário RBAC e Benchmarks Multi-Setoriais na UI | `backend/main.py`, `frontend/*` | In Progress |
+| `ECOBI-13` | Monitoramento de Drift (PSI, KS/Desvio Relativo e Degradação WAPE) | `backend/services/drift_monitor.py` | Verified |
+| `ECOBI-14` | Benchmark de Modelos Locais (4B vs 9B) e Descarregamento Ocioso (`keep_alive=0`) | `backend/services/llm_agent.py`, `backend/memory_guard.py` | Verified |
+| `ECOBI-15` | Backup Atômico SQLite com Manifesto HMAC-SHA256 e Verificação de Integridade | `backend/database.py` | Verified |
+| `ECOBI-16` | Gestão Multiusuário RBAC e Benchmarks Multi-Setoriais na UI | `backend/main.py`, `frontend/*` | Verified |

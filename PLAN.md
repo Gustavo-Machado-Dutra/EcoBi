@@ -306,4 +306,4 @@ Medidas para reduzir consumo:
 
 ---
 
-**Nota de status:** esta é uma documentação conceitual para o TCC. Qwen3.5-4B é a opção padrão proposta; Qwen3.5-9B é opcional e depende de benchmark. As tecnologias e os limites de desempenho devem ser confirmados por protótipo e testes de carga antes da implementação final.
+**Nota de status:** o MVP (`T1`–`T20`) e a Fase 2 de Evolução do Roadmap (`T21`–`T28`: Monitoramento de Drift via PSI/WAPE, Benchmark Local Qwen3.5 4B vs 9B com descarregamento ocioso `keep_alive=0`, Backup Online SQLite assinado com HMAC-SHA256 e Governança Multiusuário RBAC / Multi-Setorial) encontram-se 100% implementados e verificados por suíte automatizada (`25 passed, 0 failed`). Qwen3.5-4B opera como modelo padrão dentro do orçamento estrito de 8 GB de RAM (`psutil`); Qwen3.5-9B permanece condicionado à elegibilidade de hardware verificada pelo benchmark local.
