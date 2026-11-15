@@ -50,13 +50,37 @@
 - **Date**: 2026-11-15
 - **Status**: active
 
+### AD-007
+- **Decision**: Monitoramento determinístico de Drift de Dados e Degradação Preditiva via PSI (Population Stability Index), desvio relativo estatístico e deriva de WAPE em janelas temporais (`backend/services/drift_monitor.py`).
+- **Reason**: Atende às Seções 8 e 17 do `PLAN.md` ("monitorar degradação" e "monitoramento de drift") sem depender de avaliações subjetivas de LLM, classificando desvios em `ESTAVEL`, `ATENCAO_MODERADA` e `DRIFT_CRITICO` e integrando o alerta ao Validation Engine.
+- **Trade-off**: Requer séries com pelo menos 6 períodos ou dois datasets comparáveis para cálculo de quantis estáveis.
+- **Scope**: `backend/services/drift_monitor.py`, `backend/services/validation_engine.py`, `backend/database.py` (tabela `drift_reports`).
+- **Date**: 2026-11-15
+- **Status**: active
+
+### AD-008
+- **Decision**: Benchmark local comparativo de modelos (`qwen3.5:4b` vs `qwen3.5:9b`) e descarregamento sob demanda de modelo ocioso (`keep_alive=0` + `gc.collect()`).
+- **Reason**: Atende às Seções 6, 15 e 17 do `PLAN.md` ("opção de benchmark para máquinas com maior capacidade de memória", "carregamento sob demanda e descarregamento quando ocioso"), permitindo aferir latência, acurácia nas 6 tools da allowlist e pico de RAM (`psutil <= 8192 MB`).
+- **Trade-off**: Quando o Ollama está offline, o benchmark avalia o roteador determinístico local e verifica a elegibilidade de hardware do modelo 9B via `psutil`.
+- **Scope**: `backend/services/llm_agent.py`, `backend/memory_guard.py`, `backend/database.py` (tabela `model_benchmarks`).
+- **Date**: 2026-11-15
+- **Status**: active
+
+### AD-009
+- **Decision**: Política de backup online atômico do SQLite (`sqlite3.Connection.backup`) assinado com HMAC-SHA256, verificação `PRAGMA integrity_check`, suporte multiusuário RBAC local e benchmarks multi-setoriais (`Varejo`, `Indústria`, `Logística`, `Energia`, `Agronegócio`, `Serviços`).
+- **Reason**: Atende às Seções 3, 11 e 17 do `PLAN.md` ("Política de backup, retenção e exclusão", "Controle de acesso por usuário e projeto", "ampliação a outros setores", "suporte multiusuário e implantação corporativa controlada").
+- **Trade-off**: Backups são armazenados localmente em `data/backups/` sob proteção de Path Traversal e verificação criptográfica.
+- **Scope**: `backend/database.py`, `backend/config.py`, `backend/services/analytics.py`, `backend/main.py`, `frontend/*`.
+- **Date**: 2026-11-15
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: ecobi-mvp
-- **Phase / Task**: Rodada 3 - Integração, Suíte Automatizada Pytest (C1-C12), Verificação UI/UX e Documentação Concluídas (T1 a T20 100%)
-- **Completed**: `backend/*`, `frontend/*`, `samples/*`, `tests/*`, `README.md`, `.specs/features/ecobi-mvp/spec.md`, `.specs/features/ecobi-mvp/design.md`, `.specs/features/ecobi-mvp/tasks.md`, `.specs/features/ecobi-mvp/verification.md`
-- **In-progress** (file:line): none
-- **Next step**: MVP 100% concluído, validado (`21 passed, 0 failed`) e pronto para operação local ou avaliação em banca
+- **Feature**: ecobi-phase2
+- **Phase / Task**: Fase 2 do Roadmap (Monitoramento de Drift, Benchmark LLM & Unload Ocioso, Backup SQLite HMAC-SHA256 e Governança Multiusuário/Multi-Setor - T21 a T28)
+- **Completed**: MVP `ecobi-mvp` (T1 a T20, 21 passed) + Especificação e Design da Fase 2 (`.specs/features/ecobi-phase2/spec.md`, `design.md`, `tasks.md`)
+- **In-progress** (file:line): T21 a T28
+- **Next step**: Execução coordenada de T21 a T28 com delegação especializada e validação Pytest
 - **Blockers**: none
-- **Uncommitted files**: none
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/ecobi-phase2/*`
 - **Branch**: main
