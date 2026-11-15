@@ -1,0 +1,24 @@
+# Python / Virtualenv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment & Local Runtime Data
+.env
+.env.local
+data/runtime/
+*.db
+*.db-wal
+*.db-shm
+
+# Maestri local runtime state
+.maestri/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.log
