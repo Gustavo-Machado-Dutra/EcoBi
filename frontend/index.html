@@ -146,6 +146,21 @@
             </svg>
             <span class="nav-text">10. Histórico &amp; Auditoria</span>
           </button>
+          <button type="button" class="nav-item" data-view="view-multiproject" id="nav-btn-multiproject">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span class="nav-text">11. Dashboard Multiprojeto</span>
+          </button>
+          <button type="button" class="nav-item" data-view="view-scheduler" id="nav-btn-scheduler">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span class="nav-text">12. Automações &amp; Agendador</span>
+          </button>
         </div>
       </nav>
 
@@ -1697,6 +1712,196 @@
                 <tbody id="audit-logs-table-body">
                   <tr>
                     <td colspan="6" class="empty-cell">Carregando registros de auditoria...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <!-- ====================================================================
+             11. DASHBOARD COMPARATIVO MULTIPROJETO (FASE 4: ECOBI-22)
+             ==================================================================== -->
+        <section id="view-multiproject" class="view-section" aria-labelledby="heading-multiproject" hidden>
+          <div class="view-header">
+            <div>
+              <h2 id="heading-multiproject" class="view-title">Dashboard Corporativo Multiprojeto</h2>
+              <p class="view-subtitle">Consolidação executiva de indicadores financeiros e ambientais (ESG), ranking de ecoeficiência e comparativo entre unidades corporativas.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" id="btn-refresh-multiproject" class="btn btn-secondary">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+                </svg>
+                <span>Atualizar Dados</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid" id="multiproject-kpis-grid">
+            <div class="stat-card">
+              <span class="stat-label">Receita Bruta Consolidada</span>
+              <span class="stat-value" id="mp-total-revenue">R$ 0,00</span>
+              <span class="stat-subtext">Soma reconciliada dos projetos ativos</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Lucro &amp; Margem Operacional</span>
+              <span class="stat-value" id="mp-total-profit">R$ 0,00</span>
+              <span class="stat-subtext" id="mp-weighted-margin">Margem média ponderada: 0,0%</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Emissões Totais de GEE</span>
+              <span class="stat-value" id="mp-total-emissions">0,000 tCO2e</span>
+              <span class="stat-subtext" id="mp-scopes-breakdown">Escopo 1: 0 · Escopo 2: 0 · Escopo 3: 0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Intensidade de Carbono</span>
+              <span class="stat-value" id="mp-corporate-intensity">0,0000</span>
+              <span class="stat-subtext">tCO2e / R$ Milhão faturado</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Créditos de Carbono</span>
+              <span class="stat-value" id="mp-carbon-credits">0,000 tCO2e</span>
+              <span class="stat-subtext">Segregados (Anti-Greenwashing)</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Linhagem dos Dados</span>
+              <span class="stat-value" id="mp-lineage-counts">0 / 0</span>
+              <span class="stat-subtext" id="mp-lineage-subtext">Projetos validados (REAL) vs em análise</span>
+            </div>
+          </div>
+
+          <article class="card">
+            <div class="card-header">
+              <h3 class="card-title">Ranking Corporativo de Ecoeficiência</h3>
+              <p class="card-subtitle">Classificação de projetos e filiais por intensidade de emissões de carbono e conformidade metodológica.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" aria-label="Ranking corporativo de ecoeficiência">
+                <thead>
+                  <tr>
+                    <th>Posição</th>
+                    <th>Projeto / Unidade</th>
+                    <th>Setor</th>
+                    <th>Receita Bruta</th>
+                    <th>Emissões Totais</th>
+                    <th>Intensidade (tCO2e/R$ Mi)</th>
+                    <th>Origem dos Dados</th>
+                    <th>Classificação</th>
+                  </tr>
+                </thead>
+                <tbody id="multiproject-ranking-table-body">
+                  <tr>
+                    <td colspan="8" class="empty-cell">Carregando ranking corporativo...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <!-- ====================================================================
+             12. AUTOMAÇÃO OPERACIONAL & AGENDADOR (FASE 4: ECOBI-21)
+             ==================================================================== -->
+        <section id="view-scheduler" class="view-section" aria-labelledby="heading-scheduler" hidden>
+          <div class="view-header">
+            <div>
+              <h2 id="heading-scheduler" class="view-title">Automações &amp; Agendador Local</h2>
+              <p class="view-subtitle">Gerenciamento autônomo de rotinas periódicas de sincronização incremental de conectores e backups online assinados.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" id="btn-refresh-scheduler" class="btn btn-secondary">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+                </svg>
+                <span>Atualizar Rotinas</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="card">
+              <div class="card-header">
+                <h3 class="card-title">Cadastrar Nova Rotina Agendada</h3>
+                <p class="card-subtitle">Configure jobs automáticos para sincronização de conectores ou backups consistentes do SQLite.</p>
+              </div>
+              <form id="form-create-scheduled-job" class="form-grid">
+                <div class="form-group">
+                  <label for="sched-job-name">Nome da Rotina</label>
+                  <input type="text" id="sched-job-name" required placeholder="Ex: Sincronização ERP Diária" class="input-text">
+                </div>
+                <div class="form-group">
+                  <label for="sched-job-type">Tipo de Operação</label>
+                  <select id="sched-job-type" class="input-select" required>
+                    <option value="connector_sync">Sincronização de Conector (Somente-Leitura)</option>
+                    <option value="sqlite_backup">Backup Online SQLite (com Assinatura HMAC e Trial Restore)</option>
+                    <option value="data_quality_audit">Auditoria Periódica de Qualidade de Dados</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="sched-job-interval">Intervalo de Execução (minutos)</label>
+                  <input type="number" id="sched-job-interval" value="60" min="1" max="10080" required class="input-text">
+                </div>
+                <div class="form-group" id="group-sched-retention">
+                  <label for="sched-job-retention">Retenção de Backups (dias)</label>
+                  <input type="number" id="sched-job-retention" value="30" min="1" max="365" class="input-text">
+                </div>
+                <div class="form-actions">
+                  <button type="submit" id="btn-submit-scheduled-job" class="btn btn-primary">
+                    <span>Agendar Rotina</span>
+                  </button>
+                </div>
+                <div id="sched-form-feedback" class="inline-feedback" aria-live="polite"></div>
+              </form>
+            </article>
+
+            <article class="card">
+              <div class="card-header">
+                <h3 class="card-title">Rotinas Agendadas Ativas</h3>
+                <p class="card-subtitle">Jobs operacionais gerenciados pelo serviço cooperativo em segundo plano.</p>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" aria-label="Rotinas agendadas ativas">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Tipo</th>
+                      <th>Intervalo</th>
+                      <th>Próxima Execução</th>
+                      <th>Último Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scheduler-jobs-table-body">
+                    <tr>
+                      <td colspan="6" class="empty-cell">Nenhum job agendado cadastrado.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <article class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+              <h3 class="card-title">Histórico Recente de Execuções Automáticas</h3>
+              <p class="card-subtitle">Registro auditável de sincronizações e backups processados pelo agendador local.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" aria-label="Histórico recente de execuções">
+                <thead>
+                  <tr>
+                    <th>Data/Hora Início</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Duração</th>
+                    <th>Registros</th>
+                    <th>Detalhes / Auditoria</th>
+                  </tr>
+                </thead>
+                <tbody id="scheduler-logs-table-body">
+                  <tr>
+                    <td colspan="6" class="empty-cell">Nenhum log de execução registrado ainda.</td>
                   </tr>
                 </tbody>
               </table>

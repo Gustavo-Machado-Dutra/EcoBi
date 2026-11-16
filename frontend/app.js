@@ -370,6 +370,10 @@
       loadPowerbiView();
     } else if (viewId === "view-audit") {
       loadAuditAndSystemView();
+    } else if (viewId === "view-multiproject") {
+      loadMultiprojectData();
+    } else if (viewId === "view-scheduler") {
+      loadSchedulerData();
     }
   }
 
@@ -3118,6 +3122,219 @@
         setInlineFeedback("model-settings-feedback", `Erro na avaliação LoRA: ${err.message}`, true);
       }
     });
+
+    // Controles Fase 4: Dashboard Multiprojeto & Automações do Agendador
+    document.getElementById("btn-refresh-multiproject")?.addEventListener("click", () => {
+      loadMultiprojectData();
+      showToast("Dados multiprojeto atualizados.");
+    });
+
+    document.getElementById("btn-refresh-scheduler")?.addEventListener("click", () => {
+      loadSchedulerData();
+      showToast("Rotinas agendadas atualizadas.");
+    });
+
+    document.getElementById("form-create-scheduled-job")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById("sched-job-name");
+      const typeSelect = document.getElementById("sched-job-type");
+      const intervalInput = document.getElementById("sched-job-interval");
+      const retentionInput = document.getElementById("sched-job-retention");
+      const feedback = document.getElementById("sched-form-feedback");
+
+      if (!nameInput || !typeSelect || !intervalInput) return;
+
+      const payload = {
+        name: nameInput.value.trim(),
+        job_type: typeSelect.value,
+        interval_minutes: parseInt(intervalInput.value, 10) || 60,
+        retention_days: retentionInput ? parseInt(retentionInput.value, 10) || 30 : 30,
+        project_id: state.activeProjectId || null,
+      };
+
+      setInlineFeedback("sched-form-feedback", "Cadastrando rotina agendada...");
+      try {
+        await apiRequest("/api/scheduler/jobs", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        setInlineFeedback("sched-form-feedback", "Rotina agendada cadastrada com sucesso!");
+        showToast("Nova rotina agendada com sucesso.");
+        nameInput.value = "";
+        await loadSchedulerData();
+      } catch (err) {
+        setInlineFeedback("sched-form-feedback", `Erro ao agendar rotina: ${err.message}`, true);
+      }
+    });
+  }
+
+  // ==========================================================================
+  // 17. FASE 4: DASHBOARD MULTIPROJETO & AGENDADOR LOCAL
+  // ==========================================================================
+
+  async function loadMultiprojectData() {
+    try {
+      const [overview, rankingRes] = await Promise.all([
+        apiRequest("/api/multiproject/overview"),
+        apiRequest("/api/multiproject/ranking"),
+      ]);
+
+      const totals = overview.consolidated_totals || {};
+      const elRev = document.getElementById("mp-total-revenue");
+      const elProfit = document.getElementById("mp-total-profit");
+      const elMargin = document.getElementById("mp-weighted-margin");
+      const elEmiss = document.getElementById("mp-total-emissions");
+      const elScopes = document.getElementById("mp-scopes-breakdown");
+      const elInt = document.getElementById("mp-corporate-intensity");
+      const elCredits = document.getElementById("mp-carbon-credits");
+      const elLineage = document.getElementById("mp-lineage-counts");
+
+      if (elRev) elRev.textContent = formatCurrency(totals.receita_bruta_total || 0);
+      if (elProfit) elProfit.textContent = formatCurrency(totals.lucro_operacional_total || 0);
+      if (elMargin) elMargin.textContent = `Margem média ponderada: ${(totals.margem_operacional_ponderada_pct || 0).toFixed(1)}%`;
+      if (elEmiss) elEmiss.textContent = `${(totals.emissoes_totais_brutas_tco2e || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tCO2e`;
+      if (elScopes) elScopes.textContent = `Escopo 1: ${(totals.emissoes_escopo_1_tco2e || 0).toFixed(1)} · Escopo 2: ${(totals.emissoes_escopo_2_tco2e || 0).toFixed(1)} · Escopo 3: ${(totals.emissoes_escopo_3_tco2e || 0).toFixed(1)}`;
+      if (elInt) elInt.textContent = (totals.intensidade_carbono_corporativa_tco2e_milhao || 0).toFixed(4);
+      if (elCredits) elCredits.textContent = `${(totals.creditos_carbono_segregados_tco2e || 0).toFixed(2)} tCO2e`;
+
+      const lineage = overview.lineage_breakdown || {};
+      if (elLineage) elLineage.textContent = `${lineage.real_validated_projects || 0} REAL / ${lineage.estimated_in_analysis_projects || 0} ESTIMADO`;
+
+      // Renderiza ranking
+      const rankingBody = document.getElementById("multiproject-ranking-table-body");
+      if (rankingBody) {
+        const ranking = rankingRes.ranking || [];
+        if (!ranking.length) {
+          rankingBody.innerHTML = `<tr><td colspan="8" class="empty-cell">Nenhum projeto com análises concluídas para o ranking.</td></tr>`;
+        } else {
+          rankingBody.innerHTML = ranking
+            .map((item) => {
+              const badgeClass = item.eco_badge === "LÍDER_VERDE" ? "badge-success" : (item.eco_badge === "CONFORME" ? "badge-info" : "badge-warning");
+              return `
+                <tr>
+                  <td><strong>#${item.rank}</strong></td>
+                  <td>${escapeHtml(item.name)}</td>
+                  <td>${escapeHtml(item.sector)}</td>
+                  <td>${formatCurrency(item.receita_bruta)}</td>
+                  <td>${item.emissoes_totais_tco2e.toFixed(2)} tCO2e</td>
+                  <td>${item.intensidade_carbono_tco2e_milhao.toFixed(4)}</td>
+                  <td><span class="badge ${item.data_origin === "REAL" ? "badge-success" : "badge-secondary"}">${escapeHtml(item.data_origin)}</span></td>
+                  <td><span class="badge ${badgeClass}">${escapeHtml(item.eco_badge)}</span></td>
+                </tr>
+              `;
+            })
+            .join("");
+        }
+      }
+    } catch (err) {
+      console.error("Falha ao carregar dashboard multiprojeto:", err);
+      showToast(`Erro ao carregar dados multiprojeto: ${err.message}`, true);
+    }
+  }
+
+  async function loadSchedulerData() {
+    try {
+      const [jobsRes, runsRes] = await Promise.all([
+        apiRequest("/api/scheduler/jobs"),
+        apiRequest("/api/scheduler/runs"),
+      ]);
+
+      const jobsBody = document.getElementById("scheduler-jobs-table-body");
+      if (jobsBody) {
+        const jobs = jobsRes.jobs || [];
+        if (!jobs.length) {
+          jobsBody.innerHTML = `<tr><td colspan="6" class="empty-cell">Nenhum job agendado cadastrado.</td></tr>`;
+        } else {
+          jobsBody.innerHTML = jobs
+            .map((j) => {
+              const statusBadge = j.last_status === "SUCCESS" ? "badge-success" : (j.last_status === "FAILED" ? "badge-danger" : "badge-secondary");
+              const nextRun = j.next_run_at ? new Date(j.next_run_at).toLocaleString("pt-BR") : "Aguardando";
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(j.name)}</strong></td>
+                  <td><code>${escapeHtml(j.job_type)}</code></td>
+                  <td>${j.interval_minutes} min</td>
+                  <td>${nextRun}</td>
+                  <td><span class="badge ${statusBadge}">${escapeHtml(j.last_status || "PENDENTE")}</span></td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-secondary btn-run-job-now" data-job-id="${j.id}">Executar Agora</button>
+                    <button type="button" class="btn btn-sm btn-outline btn-toggle-job" data-job-id="${j.id}" data-active="${j.is_active}">${j.is_active ? "Pausar" : "Ativar"}</button>
+                  </td>
+                </tr>
+              `;
+            })
+            .join("");
+
+          // Eventos dos botões dinâmicos
+          jobsBody.querySelectorAll(".btn-run-job-now").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+              const target = e.currentTarget;
+              const jobId = target.getAttribute("data-job-id");
+              if (!jobId) return;
+              target.disabled = true;
+              showToast("Disparando execução imediata do job...");
+              try {
+                const res = await apiRequest(`/api/scheduler/jobs/${jobId}/run-now`, { method: "POST" });
+                showToast(`Job executado: ${res.status || "OK"}`);
+                await loadSchedulerData();
+              } catch (err) {
+                showToast(`Erro na execução do job: ${err.message}`, true);
+              } finally {
+                target.disabled = false;
+              }
+            });
+          });
+
+          jobsBody.querySelectorAll(".btn-toggle-job").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+              const target = e.currentTarget;
+              const jobId = target.getAttribute("data-job-id");
+              const currentActive = target.getAttribute("data-active") === "true";
+              if (!jobId) return;
+              try {
+                await apiRequest(`/api/scheduler/jobs/${jobId}/toggle`, {
+                  method: "POST",
+                  body: JSON.stringify({ is_active: !currentActive }),
+                });
+                showToast(`Rotina ${!currentActive ? "ativada" : "pausada"}.`);
+                await loadSchedulerData();
+              } catch (err) {
+                showToast(`Erro ao alterar status: ${err.message}`, true);
+              }
+            });
+          });
+        }
+      }
+
+      // Renderiza logs
+      const logsBody = document.getElementById("scheduler-logs-table-body");
+      if (logsBody) {
+        const runs = runsRes.runs || [];
+        if (!runs.length) {
+          logsBody.innerHTML = `<tr><td colspan="6" class="empty-cell">Nenhum log de execução registrado ainda.</td></tr>`;
+        } else {
+          logsBody.innerHTML = runs
+            .map((r) => {
+              const statusClass = r.status === "SUCCESS" ? "badge-success" : (r.status === "FAILED" ? "badge-danger" : "badge-secondary");
+              const startTime = r.started_at ? new Date(r.started_at).toLocaleString("pt-BR") : "";
+              const duration = r.duration_ms ? `${r.duration_ms} ms` : "-";
+              return `
+                <tr>
+                  <td>${startTime}</td>
+                  <td><code>${escapeHtml(r.job_type)}</code></td>
+                  <td><span class="badge ${statusClass}">${escapeHtml(r.status)}</span></td>
+                  <td>${duration}</td>
+                  <td>${r.records_processed || 0}</td>
+                  <td><small>${escapeHtml(JSON.stringify(r.summary || {}).substring(0, 90))}...</small></td>
+                </tr>
+              `;
+            })
+            .join("");
+        }
+      }
+    } catch (err) {
+      console.error("Falha ao carregar agendador:", err);
+    }
   }
 
   async function initApp() {
