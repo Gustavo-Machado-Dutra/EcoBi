@@ -133,18 +133,17 @@
 ## Handoff
 
 - **Feature**: ecobi-phase4
-- **Phase / Task**: Fase 4 Concluída com Sucesso (`T37` a `T44`, critérios `C21` a `C24`)
+- **Phase / Task**: Homologação Final de Release Piloto Windows Concluída com Sucesso
 - **Completed**:
-  - MVP (Fase 1: `T1` a `T20`, `C1` a `C12`)
-  - Fase 2 (`T21` a `T28`, `C13` a `C16`)
-  - Fase 3 (`T29` a `T36`, `C17` a `C20`)
-  - Fase 4 (`T37` a `T44`, `C21` a `C24`)
-  - 33 testes automatizados aprovados (0 falhas)
-  - Empacotamento Windows e Launcher com migrations automáticas (`C21`)
-  - Agendador assíncrono cooperativo de conectores e backup com HMAC (`C22`, `C23`)
-  - Dashboard multiprojeto consolidado e comparativo com ranking e RBAC (`C24`)
-- **In-progress**: Finalização de documentação, commits e sincronização Maestri
-- **Next step**: Entrega do relatório executivo ao usuário
+  - Fases 1 a 4 100% implementadas e auditadas (44 tarefas, critérios C1 a C24)
+  - 33 testes automatizados aprovados (0 falhas em 191.90s)
+  - Build executável PyInstaller gerado em `dist/EcoBI/EcoBI.exe` (24.9 MB)
+  - Teste em ambiente Windows limpo (sem Python no PATH) aprovado com persistência SQLite
+  - Saneamento de warnings: 4 warnings de data e HTTP 422 resolvidos
+  - Automação operacional com travas de concorrência e backup com restore trial
+  - Dashboard multiprojeto consolidado com separação de créditos de carbono e RBAC
+- **In-progress**: none
+- **Next step**: Distribuição e execução do piloto corporativo
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: main

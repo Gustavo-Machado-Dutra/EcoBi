@@ -1,54 +1,69 @@
-# EcoBI Intelligence — Relatório de Verificação Técnica da Fase 4 (`ecobi-phase4`)
+# EcoBI Intelligence — Relatório de Verificação e Homologação de Release (`ecobi-phase4`)
 
 **Feature ID**: `ecobi-phase4`  
 **Spec Version**: `4.0.0`  
-**Status**: `Approved`  
+**Status**: `Approved / Homologated for Production Pilot`  
 **Data**: 2026-11-15  
 **Agente Responsável**: `QA #2` / `Revisor de Código + Segurança + DevOps #2` / `maestro #2`  
 
 ---
 
-## 1. Resumo Executivo da Verificação
+## 1. Resumo Executivo da Homologação
 
-A Fase 4 (`T37` a `T44`) do roadmap do **EcoBI Intelligence** concluiu com 100% de êxito as entregas de release piloto, automação operacional e consolidação executiva corporativa:
-- **`ECOBI-20` (C21)**: Empacotamento Executável Windows e Automação de Inicialização (`scripts/ecobi_launcher.py`, `scripts/start_ecobi.bat`, `scripts/start_ecobi.ps1`, `ecobi.spec`, `docs/windows_deployment.md`).
-- **`ECOBI-21` (C22)**: Agendamento de Sincronização Incremental de Conectores com trava de concorrência (`backend/services/scheduler.py`).
-- **`ECOBI-21` (C23)**: Agendamento de Backup Online SQLite com Assinatura HMAC-SHA256, política de retenção rotativa e restore trial em sandbox isolada.
-- **`ECOBI-22` (C24)**: Dashboard e Relatórios Comparativos Multiprojeto com Governança anti-greenwashing, ranking de ecoeficiência e isolamento estrito por RBAC (`backend/services/multiproject.py`).
+A auditoria de homologação final do **EcoBI Intelligence** validou com êxito todos os critérios de qualidade, confiabilidade, segurança e independência de ambiente de desenvolvimento:
 
-**Status Consolidado da Suíte**: **33 passed, 0 failed em 200.87s**.  
-**RAM**: Consumo máximo <= 8192 MB (pico operacional < 512 MB).  
-**Conformidade de Segurança**: `BLOCK_EXTERNAL_AI = True` estritamente mantido; zero chamadas a endpoints externos de IA.
+1. **Binário Executável Windows**: Build real gerado pelo PyInstaller em `dist/EcoBI/EcoBI.exe` (24.9 MB) com todas as dependências autocontidas (`_internal/`).
+2. **Ambiente Limpo (Clean Room)**: Testado em pasta temporária isolada com remoção de Python e Git do `PATH`. O executável inicializou a estrutura `data/`, aplicou as migrações SQLite (`001` a `006`), subiu o servidor Uvicorn na porta configurada, serviu o frontend estático, validou consentimento LGPD na autenticação, persistiu dados e encerrou graciosamente.
+3. **Automação Operacional**: Sincronização incremental com trava de concorrência (`CONCURRENCY_LOCKED`), backups online com HMAC-SHA256, política de retenção rotativa e restore trial em sandbox isolada.
+4. **Governança Multiprojeto**: Consolidação financeira e ambiental (GHG Protocol Escopos 1, 2 e 3), separação estrita de créditos de carbono, linhagem REAL vs ESTIMADO, ranking de ecoeficiência e isolamento de dados por RBAC (`HTTP 403`).
+5. **Segurança e Orçamento de Memória**: `BLOCK_EXTERNAL_AI = True` mantido sem desvios; consumo de RAM em execução inferior a 250 MB RSS (orçamento máximo: 8192 MB).
+6. **Saneamento de Alertas (Warnings)**: 4 warnings de data e HTTP 422 eliminados na base de código.
 
 ---
 
-## 2. Evidência de Execução dos Testes Automatizados
+## 2. Evidência do Build e Homologação do Executável Windows
 
-### 2.1. Suíte Específica da Fase 4 (`tests/test_phase4_packaging_scheduler_multiproject.py`)
+### 2.1. Artefatos Gerados
+- **Localização**: `dist/EcoBI/EcoBI.exe`
+- **Tamanho do Executável**: 24.962.553 bytes (~24.9 MB)
+- **Recursos Empacotados**: `frontend/` (HTML/CSS/JS Sustainable Tech), `samples/` (datasets piloto e adversariais).
+- **Especificação**: `ecobi.spec` com `hidden_imports` exaustivos (FastAPI, Uvicorn, Pandas, Scikit-learn, Openpyxl, Psutil, SQLite3).
 
-Comando executado:
-```powershell
-.\.venv\Scripts\python.exe -m pytest -v tests/test_phase4_packaging_scheduler_multiproject.py
-```
-
-Resultado:
+### 2.2. Teste em Ambiente Limpo (Sem Python ou Ferramentas de Desenvolvimento no PATH)
 ```text
-============================= test session starts =============================
-platform win32 -- Python 3.13.2, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\Pichau\Downloads\EcoBI\.venv\Scripts\python.exe
-cachedir: .pytest_cache
-rootdir: C:\Users\Pichau\Downloads\EcoBI
-plugins: asyncio-1.5.0, anyio-4.9.0
-collected 4 items
+Caminho de Teste Isolado: C:\Users\Pichau\AppData\Local\Temp\ecobi_clean_test\EcoBI.exe
+PATH configurado: C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem
 
-tests/test_phase4_packaging_scheduler_multiproject.py::test_c21_windows_launcher_and_bootstrap_lifecycle PASSED [ 25%]
-tests/test_phase4_packaging_scheduler_multiproject.py::test_c22_scheduled_connector_sync_and_concurrency_lock PASSED [ 50%]
-tests/test_phase4_packaging_scheduler_multiproject.py::test_c23_scheduled_hmac_backup_retention_and_restore_trial PASSED [ 75%]
-tests/test_phase4_packaging_scheduler_multiproject.py::test_c24_multiproject_dashboard_consolidation_and_rbac PASSED [100%]
+[INFO] Estrutura de diretórios locais validada em: ...\data
+[INFO] Inicializando banco de dados local SQLite (WAL) e aplicando migrations...
+[INFO] Banco de dados pronto e migrations aplicadas com sucesso.
+[INFO] Iniciando servidor local FastAPI em http://127.0.0.1:8011...
+[INFO] Application startup complete. Uvicorn running on http://127.0.0.1:8011
 
-======================== 4 passed, 1 warning in 21.10s ========================
+Resultados das Chamadas HTTP Autônomas:
+- GET /api/health: {"status":"healthy","ram_used_mb":179.09,"block_external_ai":true}
+- GET / (Frontend SPA): Contém <title>EcoBI Intelligence (200 OK)
+- GET /static/styles.css: 43.426 bytes (200 OK)
+- GET /static/app.js: 141.673 bytes (200 OK)
+- POST /api/auth/session: Bloqueio sem consentimento LGPD (HTTP 422); aprovação com consentimento (Token emitido)
+- POST /api/projects: Projeto persistido no ecobi.db
+- GET /api/multiproject/overview: accessible_projects_count = 1
+- Reinicialização e Persistência: Dados mantidos intactos no SQLite após restart (Exit Code: 0)
 ```
 
-### 2.2. Suíte de Regressão Integral do Sistema (33 Testes)
+---
+
+## 3. Relatório de Tratamento dos Warnings
+
+| Warning Original | Origem | Ação Corretiva Aplicada | Status |
+|---|---|---|---|
+| `UserWarning: Parsing dates in %d/%m/%Y format when dayfirst=False` (x2) | `backend/services/data_quality.py:472` | Configurado parsing explícito com `format="mixed", dayfirst=True`, alinhado a `connectors.py`. | **RESOLVIDO** |
+| `StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated` (x2) | `backend/main.py:1418, 1454, 1528, 1553` | Substituído por `status.HTTP_422_UNPROCESSABLE_CONTENT` (código HTTP 422). | **RESOLVIDO** |
+| `StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated` | `.venv/.../testclient.py:1` | Aviso interno de compatibilidade futura da biblioteca Starlette; sem impacto funcional ou em produção. | **REVISADO / BENIGNO** |
+
+---
+
+## 4. Evidência da Suíte de Regressão Completa (33 Testes)
 
 Comando executado:
 ```powershell
@@ -58,30 +73,11 @@ Comando executado:
 Resultado:
 ```text
 .................................                                        [100%]
-33 passed, 5 warnings in 200.87s (0:03:20)
+33 passed, 1 warning in 191.90s (0:03:11)
 ```
 
----
-
-## 3. Matriz de Rastreabilidade dos Critérios de Aceite (`C21`–`C24`)
-
-| Critério | Descrição | Teste Automatizado | Evidência de Validação | Status |
-|---|---|---|---|---|
-| **C21** | Empacotamento Windows e Ciclo de Inicialização | `test_c21_windows_launcher_and_bootstrap_lifecycle` | `scripts/ecobi_launcher.py --check-only` valida banco, migrations (001 a 006), diretórios e portas sem exceções. | **APROVADO** |
-| **C22** | Sincronização Agendada e Trava de Concorrência | `test_c22_scheduled_connector_sync_and_concurrency_lock` | Sincronização executada com sucesso; execução paralela sobreposta bloqueada com código `CONCURRENCY_LOCKED`. | **APROVADO** |
-| **C23** | Backup Online SQLite com HMAC e Teste de Restauração | `test_c23_scheduled_hmac_backup_retention_and_restore_trial` | Backup online sem lock; HMAC-SHA256 gerado e validado; restore trial em banco temporário aprovado com `INTEGRITY_OK`; retenção máxima respeitada com expurgo de arquivos antigos. | **APROVADO** |
-| **C24** | Dashboard Multiprojeto, Ranking e RBAC | `test_c24_multiproject_dashboard_consolidation_and_rbac` | Agregação corporativa exata (R$ 8.4M receita bruta; R$ 1.68M lucro operacional); emissões Escopos 1 e 2 calculadas; ranking de ecoeficiência com eco-badges; operador alheio barrado com HTTP 403 Forbidden. | **APROVADO** |
-
----
-
-## 4. Verificação de Acessibilidade, Segurança e Governança
-
-1. **Acessibilidade WCAG 2.1 AA**:
-   - Elementos interativos no frontend possuem contrastes semânticos, rótulos e feedback visual.
-   - Preservação de `aria-live="polite"` em containers de notificação e alertas.
-2. **Segurança e Isolamento RBAC**:
-   - Tokens de sessão autenticados em rotas de agendamento e visão corporativa.
-   - Validação estrita de escopo de permissão (`admin` e `validator` para agendamento operacional e visão corporativa global; `analyst` e `viewer` isolados em seus projetos).
-3. **Governança Anti-Greenwashing**:
-   - Emissões brutas e créditos de carbono mantidos estritamente segregados em todas as visualizações consolidadas e relatórios comparativos.
-   - Rastreabilidade de dados reais vs dados estimados mantida por projeto e agregada na visão corporativa.
+### Rastreabilidade dos 33 Testes por Fase:
+- **MVP (Fase 1: C1–C12)**: 21 testes cobrindo ingestão chunked, integridade de dados, cálculos financeiros e ESG, motor preditivo com split cronológico, simulação What-If, validation engine determinístico, assistente IA com 6 tools em allowlist e gerador Power BI PBIP/PBIR.
+- **Fase 2 (C13–C16)**: 4 testes cobrindo drift de dados PSI e WAPE, benchmark Qwen 4B vs 9B com liberação de RAM, backup online SQLite com HMAC-SHA256 e governança RBAC / multi-setorial.
+- **Fase 3 (C17–C20)**: 4 testes cobrindo conectores somente-leitura com ingestão incremental e linhagem SHA-256, bloqueio de queries de escrita e DDL, recalibração preditiva assistida com portão de aprovação, e pipeline local de avaliação LoRA setorial.
+- **Fase 4 (C21–C24)**: 4 testes cobrindo empacotamento Windows com launcher bootstrap, agendamento de conectores com trava de concorrência, agendamento de backup com HMAC, expurgo LGPD e restore trial, e dashboard multiprojeto corporativo consolidado com RBAC.
