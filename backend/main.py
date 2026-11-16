@@ -44,9 +44,11 @@ from backend.services import (
     drift_monitor,
     llm_agent,
     lora_evaluator,
+    multiproject,
     powerbi_generator,
     predictive,
     recalibration,
+    scheduler,
     simulation,
     validation_engine,
 )
@@ -341,7 +343,11 @@ def _list_project_validations(project_id: str) -> List[Dict[str, Any]]:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     _ensure_db_ready()
-    yield
+    scheduler.start_scheduler_service(poll_interval_sec=15.0)
+    try:
+        yield
+    finally:
+        scheduler.stop_scheduler_service()
 
 
 app = FastAPI(
@@ -1364,6 +1370,28 @@ class LoraEvaluateRequest(BaseModel):
     project_id: Optional[str] = None
 
 
+class ScheduledJobCreateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    job_type: str = Field(..., description="connector_sync, sqlite_backup ou data_quality_audit")
+    project_id: Optional[str] = None
+    connector_id: Optional[str] = None
+    interval_minutes: int = Field(default=60, ge=1, le=10080)
+    is_active: bool = Field(default=True)
+    max_retries: int = Field(default=3, ge=1, le=10)
+    retention_days: int = Field(default=30, ge=1, le=365)
+    max_backups: int = Field(default=10, ge=1, le=100)
+
+
+class ScheduledJobToggleRequest(BaseModel):
+    is_active: bool
+
+
+class CompareProjectsRequest(BaseModel):
+    project_ids: List[str] = Field(..., min_length=1)
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+
+
 @app.post("/api/projects/{project_id}/connectors", status_code=status.HTTP_201_CREATED)
 def create_connector_endpoint(
     project_id: str,
@@ -1542,6 +1570,164 @@ def list_lora_evaluations_endpoint(
             it["deterministic_alignment_score"] = None
             it["latency_ms"] = None
     return {"evaluations": items, "count": len(items)}
+
+
+# ============================================================================
+# Fase 4: Automação Operacional (Scheduler) e Dashboard Multiprojeto
+# ============================================================================
+
+@app.get("/api/scheduler/jobs")
+def list_scheduler_jobs_endpoint(
+    project_id: Optional[str] = Query(default=None),
+    job_type: Optional[str] = Query(default=None),
+    is_active: Optional[bool] = Query(default=None),
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    jobs = database.list_scheduled_jobs(project_id=project_id, job_type=job_type, is_active=is_active)
+    return {"jobs": jobs, "count": len(jobs)}
+
+
+@app.post("/api/scheduler/jobs", status_code=status.HTTP_201_CREATED)
+def create_scheduler_job_endpoint(
+    payload: ScheduledJobCreateRequest,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    if payload.project_id:
+        _get_project_or_404(payload.project_id)
+
+    try:
+        return database.create_scheduled_job(
+            name=payload.name,
+            job_type=payload.job_type,
+            project_id=payload.project_id,
+            connector_id=payload.connector_id,
+            interval_minutes=payload.interval_minutes,
+            is_active=payload.is_active,
+            max_retries=payload.max_retries,
+            retention_days=payload.retention_days,
+            max_backups=payload.max_backups,
+            created_by=session.get("operator_name", "analyst"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/api/scheduler/jobs/{job_id}/toggle")
+def toggle_scheduler_job_endpoint(
+    job_id: str,
+    payload: ScheduledJobToggleRequest,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    existing = database.get_scheduled_job(job_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' não encontrado.")
+
+    updated = database.update_scheduled_job(
+        job_id=job_id,
+        is_active=payload.is_active,
+        actor=session.get("operator_name", "analyst"),
+    )
+    return updated or {}
+
+
+@app.post("/api/scheduler/jobs/{job_id}/run-now")
+async def run_scheduler_job_now_endpoint(
+    job_id: str,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst", "operator"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    existing = database.get_scheduled_job(job_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' não encontrado.")
+
+    try:
+        res = await scheduler.execute_scheduled_job(
+            job_id=job_id,
+            triggered_by=f"manual:{session.get('operator_name', 'operator')}",
+        )
+        return res
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@app.delete("/api/scheduler/jobs/{job_id}")
+def delete_scheduler_job_endpoint(
+    job_id: str,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    try:
+        security.require_role(session, ["admin", "analyst"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    deleted = database.delete_scheduled_job(job_id=job_id, actor=session.get("operator_name", "admin"))
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' não encontrado.")
+    return {"deleted": True, "job_id": job_id}
+
+
+@app.get("/api/scheduler/runs")
+def list_scheduler_runs_endpoint(
+    job_id: Optional[str] = Query(default=None),
+    project_id: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    _session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    logs = database.list_job_execution_logs(job_id=job_id, project_id=project_id, limit=limit)
+    return {"runs": logs, "count": len(logs)}
+
+
+@app.get("/api/multiproject/overview")
+def multiproject_overview_endpoint(
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    user_id = session.get("user_id")
+    role = session.get("role", "analyst")
+    return multiproject.get_multiproject_overview(user_id=user_id, role=role)
+
+
+@app.post("/api/multiproject/compare")
+def multiproject_compare_endpoint(
+    payload: CompareProjectsRequest,
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    user_id = session.get("user_id")
+    role = session.get("role", "analyst")
+    try:
+        return multiproject.compare_projects(
+            project_ids=payload.project_ids,
+            user_id=user_id,
+            role=role,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/multiproject/ranking")
+def multiproject_ranking_endpoint(
+    order_by: str = Query(default="carbon_intensity"),
+    session: Dict[str, Any] = Depends(get_current_session),
+) -> Dict[str, Any]:
+    user_id = session.get("user_id")
+    role = session.get("role", "analyst")
+    ranking = multiproject.get_multiproject_ranking(user_id=user_id, role=role, order_by=order_by)
+    return {"ranking": ranking, "count": len(ranking), "ordered_by": order_by}
 
 
 # ============================================================================
