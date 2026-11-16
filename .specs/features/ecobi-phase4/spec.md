@@ -5,7 +5,7 @@
 **Versão da Spec**: `4.0.0`  
 **Data**: 2026-11-15  
 **Autor**: `Analista de Requisitos + Arquiteto de Software #2` / `maestro #2`  
-**Status**: `Draft`  
+**Status**: `Approved`  
 
 ---
 

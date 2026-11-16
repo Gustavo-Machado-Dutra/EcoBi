@@ -51,17 +51,26 @@ EcoBI/
 │       ├── validation_engine.py     # Validation Engine determinístico (APROVADO / RESSALVAS / REJEITADO)
 │       ├── llm_agent.py             # Agente Ollama local (6 tools), benchmark 4B vs 9B e unload ocioso
 │       ├── lora_evaluator.py        # Pipeline local de avaliação experimental de adaptadores LoRA setoriais
+│       ├── scheduler.py             # Agendador local assíncrono cooperativo (sync conectores e backup online)
+│       ├── multiproject.py          # Consolidação executiva multiprojeto, ranking e governança RBAC
 │       └── powerbi_generator.py     # Gerador e validador de pacotes Power BI PBIP/PBIR (.zip)
 ├── frontend/
-│   ├── index.html                   # 10 telas da interface Sustainable Tech
+│   ├── index.html                   # 12 telas/seções da interface Sustainable Tech
 │   ├── styles.css                   # Design System CSS3 responsivo e acessível
 │   └── app.js                       # Lógica cliente Vanilla JS ES6+ integrada à API
+├── scripts/
+│   ├── ecobi_launcher.py            # Launcher Windows com validação de banco, migrations e health check
+│   ├── start_ecobi.bat              # Script duplo-clique de inicialização rápida
+│   └── start_ecobi.ps1              # Script PowerShell de inicialização e monitoramento
+├── docs/
+│   └── windows_deployment.md        # Guia completo de implantação, operação e troubleshooting no Windows
+├── ecobi.spec                       # Especificação PyInstaller para empacotamento executável Windows
 ├── samples/
 │   ├── generate_samples.py          # Gerador determinístico de datasets sintéticos
 │   ├── ecobi_varejo_piloto.csv      # Série limpa de 24 meses para fluxo piloto completo
 │   ├── ecobi_dados_adversos.csv     # Dataset adverso (duplicatas, nulos, outliers, PII e injection)
 │   └── ecobi_curto_insuficiente.csv # Série curta (5 meses) para validação de bloqueio preditivo
-└── tests/                           # Suíte automatizada Pytest (29 testes cobrindo C1 a C20)
+└── tests/                           # Suíte automatizada Pytest (33 testes cobrindo C1 a C24)
 ```
 
 ---
@@ -79,14 +88,14 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 ```
 
-### 3.3. Geração dos Datasets Sintéticos (Opcional — já incluídos em `samples/`)
+### 3.3. Inicialização Rápida no Windows (Release Piloto)
+Para iniciar a aplicação com bootstrap automatizado, verificação de integridade do banco SQLite, aplicação de migrações e abertura automática da interface no navegador:
 ```powershell
-.\.venv\Scripts\python.exe samples/generate_samples.py
-```
-
-### 3.4. Inicialização do Servidor FastAPI
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+.\scripts\start_ecobi.bat
+# ou via PowerShell:
+.\scripts\start_ecobi.ps1
+# ou via Launcher Python:
+.\.venv\Scripts\python.exe scripts/ecobi_launcher.py
 ```
 Acesse no navegador: **`http://127.0.0.1:8000`**
 
@@ -94,16 +103,20 @@ Acesse no navegador: **`http://127.0.0.1:8000`**
 
 ## 4. Execução dos Testes e Verificação de Qualidade
 
-Para validar a compilação e executar toda a suíte de testes unitários, de integração e adversariais (`C1` a `C16`):
+Para validar a compilação e executar toda a suíte de testes unitários, de integração e de governança (`C1` a `C24`):
 
 ```powershell
-.\.venv\Scripts\python.exe -m compileall -q backend samples tests
+.\.venv\Scripts\python.exe -m compileall -q backend samples tests scripts
 .\.venv\Scripts\python.exe -m pytest -v
 ```
 
 ### Resultado Verificado da Suíte
-- **Total de testes**: `29 passed, 0 failed` (21 testes do MVP `C1`–`C12` + 4 testes da Fase 2 `C13`–`C16` + 4 testes da Fase 3 `C17`–`C20`).
+- **Total de testes**: `33 passed, 0 failed` (21 testes do MVP `C1`–`C12` + 4 testes da Fase 2 `C13`–`C16` + 4 testes da Fase 3 `C17`–`C20` + 4 testes da Fase 4 `C21`–`C24`).
 - **Consumo medido de RAM (`psutil`)**: `~230.12 MB RSS` (**2.81%** do orçamento máximo de `8192.0 MB`).
+- **Funcionalidades da Fase 4 integradas**:
+  - `scripts/ecobi_launcher.py`, `scripts/start_ecobi.bat`, `scripts/start_ecobi.ps1`, `ecobi.spec`, `docs/windows_deployment.md` (Empacotamento Windows e Lifecycle Bootstrap C21).
+  - `POST /api/scheduler/jobs`, `GET /api/scheduler/jobs`, `POST /api/scheduler/jobs/{id}/toggle`, `POST /api/scheduler/jobs/{id}/run-now`, `GET /api/scheduler/runs` (Agendador Assíncrono Cooperativo de Sincronização Incremental de Conectores e Backup Online SQLite assinado com HMAC-SHA256, expurgo LGPD e restore trial C22/C23).
+  - `GET /api/multiproject/overview`, `POST /api/multiproject/compare`, `GET /api/multiproject/ranking` (Visão executiva multiprojeto, separação de créditos de carbono, linhagem REAL vs ESTIMADO, ranking de ecoeficiência e controle estrito por RBAC C24).
 - **Funcionalidades da Fase 2 integradas**:
   - `POST /api/projects/{project_id}/drift/analyze` e `GET /api/projects/{project_id}/drift/reports` (Monitoramento de Drift PSI e degradação de WAPE).
   - `POST /api/system/model-benchmark`, `GET /api/system/model-benchmarks` e `POST /api/settings/model/unload` (Benchmark 4B vs 9B e liberação de RAM de modelos ociosos).

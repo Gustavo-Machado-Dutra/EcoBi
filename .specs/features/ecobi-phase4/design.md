@@ -2,7 +2,7 @@
 
 **Feature ID**: `ecobi-phase4`  
 **Spec Version**: `4.0.0`  
-**Status**: `Draft`  
+**Status**: `Approved`  
 **Data**: 2026-11-15  
 
 ---
