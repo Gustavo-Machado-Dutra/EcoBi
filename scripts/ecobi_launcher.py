@@ -24,7 +24,13 @@ import urllib.request
 import webbrowser
 
 # Garante que a raiz do repositório esteja no PYTHONPATH
-ROOT_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    ROOT_DIR = Path(sys.executable).resolve().parent
+    BUNDLE_DIR = Path(sys._MEIPASS).resolve()
+else:
+    ROOT_DIR = Path(__file__).resolve().parent.parent
+    BUNDLE_DIR = ROOT_DIR
+
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 

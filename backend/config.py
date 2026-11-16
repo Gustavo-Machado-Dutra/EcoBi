@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -15,19 +16,26 @@ from typing import Any, Dict, List
 # Caminhos do Sistema de Arquivos
 # ============================================================================
 
-BASE_DIR: Path = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    BUNDLE_DIR: Path = Path(sys._MEIPASS).resolve()
+    APP_DIR: Path = Path(sys.executable).resolve().parent
+else:
+    BUNDLE_DIR: Path = Path(__file__).resolve().parent.parent
+    APP_DIR: Path = BUNDLE_DIR
 
-# Diretório de dados de runtime (banco SQLite e arquivos ingeridos)
+BASE_DIR: Path = BUNDLE_DIR
+
+# Diretório de dados de runtime (persistidos na pasta do executável, não na pasta temporária)
 _env_data_dir = os.getenv("ECOBI_DATA_DIR")
-DATA_DIR: Path = Path(_env_data_dir).resolve() if _env_data_dir else (BASE_DIR / "data" / "runtime").resolve()
+DATA_DIR: Path = Path(_env_data_dir).resolve() if _env_data_dir else (APP_DIR / "data" / "runtime").resolve()
 
 # Diretório de exportações de projetos e relatórios Power BI (PBIP/PBIR)
 _env_exports_dir = os.getenv("ECOBI_EXPORTS_DIR")
-EXPORTS_DIR: Path = Path(_env_exports_dir).resolve() if _env_exports_dir else (BASE_DIR / "data" / "powerbi_exports").resolve()
+EXPORTS_DIR: Path = Path(_env_exports_dir).resolve() if _env_exports_dir else (APP_DIR / "data" / "powerbi_exports").resolve()
 
 # Diretório de amostras e datasets de validação
 _env_samples_dir = os.getenv("ECOBI_SAMPLES_DIR")
-SAMPLES_DIR: Path = Path(_env_samples_dir).resolve() if _env_samples_dir else (BASE_DIR / "samples").resolve()
+SAMPLES_DIR: Path = Path(_env_samples_dir).resolve() if _env_samples_dir else (BUNDLE_DIR / "samples").resolve()
 
 # Caminho do banco de dados SQLite principal
 _env_db_path = os.getenv("ECOBI_DB_PATH")
