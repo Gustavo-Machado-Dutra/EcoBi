@@ -1,0 +1,98 @@
+# Manual de Implantação e Operação do EcoBI Intelligence no Windows
+
+Este documento descreve os procedimentos de instalação, inicialização, operação, gestão de logs, backups e solução de problemas do **EcoBI Intelligence** para o Release Piloto Corporativo em ambiente Windows.
+
+---
+
+## 1. Visão Geral da Arquitetura de Implantação
+
+O EcoBI Intelligence é projetado como uma aplicação **local-first** que roda diretamente na estação de trabalho corporativa:
+- **Backend**: Python + FastAPI servido pelo Uvicorn em loopback (`http://127.0.0.1:8000`).
+- **Banco de Dados**: SQLite em modo WAL (`data/runtime/ecobi.db`), sem necessidade de servidor de banco externo para operação independente.
+- **Frontend**: Interface web nativa Sustainable Tech (`frontend/`) servida estaticamente e aberta no navegador padrão do sistema.
+- **Segurança**: Bloqueio total de IA externa (`BLOCK_EXTERNAL_AI=True`), autenticação local com RBAC, trilha de auditoria completa em `audit_logs` e compatibilidade total com a LGPD.
+
+---
+
+## 2. Pré-requisitos de Sistema
+
+- **Sistema Operacional**: Windows 10 ou Windows 11 (64-bit).
+- **Memória RAM**: Mínimo de 8 GB recomendados (o EcoBI opera com teto estrito de 8192 MB de RAM).
+- **Armazenamento**: 1 GB de espaço livre em disco para runtime, logs e backups locais.
+- **Opcional (IA Generativa Avançada)**: Daemon [Ollama](https://ollama.com/) local instalado com o modelo `qwen3.5:4b` ou `qwen2.5:3b`. Caso o Ollama não esteja em execução, o assistente opera em modo determinístico local sem interrupção das funções analíticas.
+
+---
+
+## 3. Estrutura de Diretórios de Dados
+
+Ao iniciar, o launcher garante automaticamente a criação da seguinte estrutura sob a pasta `data/`:
+```text
+EcoBI/
+├── data/
+│   ├── runtime/      # Banco de dados SQLite de produção (ecobi.db, ecobi.db-wal)
+│   ├── logs/         # Logs operacionais com rotação (ecobi.log, ecobi.log.1..)
+│   ├── backups/      # Backups online atômicos assinados (*.db.bak)
+│   ├── exports/      # Pacotes gerados do Power BI (PBIP/PBIR) e relatórios
+│   └── watched/      # Diretório padrão para ingestão por watched_directory
+```
+
+---
+
+## 4. Como Iniciar a Aplicação
+
+### Método 1: Duplo-Clique (Operadores e Usuários Finais)
+1. Navegue até a pasta do projeto.
+2. Dê duplo-clique no arquivo `scripts\start_ecobi.bat`.
+3. Uma janela do console exibirá o processo de bootstrap e a aplicação abrirá automaticamente o navegador padrão em `http://127.0.0.1:8000`.
+
+### Método 2: PowerShell (Administradores e Técnicos)
+Abra o PowerShell na pasta do projeto e execute:
+```powershell
+.\scripts\start_ecobi.ps1
+```
+Parâmetros opcionais disponíveis:
+```powershell
+.\scripts\start_ecobi.ps1 -Port 8080 -NoBrowser
+```
+
+### Método 3: Validação de Ambiente (Check-Only)
+Para verificar se o banco de dados e as dependências estão íntegros sem subir o servidor HTTP:
+```powershell
+.\.venv\Scripts\python.exe scripts\ecobi_launcher.py --check-only
+```
+
+---
+
+## 5. Gestão de Logs e Auditoria
+
+- **Arquivo Principal de Log**: `data/logs/ecobi.log`.
+- **Política de Rotação**: Arquivos limitados a 10 MB cada, mantendo até 5 arquivos de histórico rotacionados (`ecobi.log.1`, `ecobi.log.2`, etc.).
+- **Auditoria de Conformidade**: Todas as ações críticas (login, importação de bases, criação de análises, execução de agendamentos e geração de backups) são registradas de forma indelével na tabela `audit_logs` do SQLite.
+
+---
+
+## 6. Automação de Sincronização e Backups
+
+O EcoBI conta com um agendador local assíncrono cooperativo (`backend/services/scheduler.py`):
+1. **Sincronização de Conectores**: Ingestão incremental automática configurável por minutos ou diária.
+2. **Backups Assinados**: Backups online do SQLite gerados periodicamente com assinatura criptográfica HMAC-SHA256.
+3. **Trial Restore**: Todo backup automático executa uma rotina de restauração experimental em banco temporário, validando a integridade física (`PRAGMA integrity_check`) sem tocar nos dados ativos.
+4. **Política de Retenção LGPD**: Backups com mais de 30 dias (ou excedentes a 10 cópias) são expurgados de maneira auditada.
+
+---
+
+## 7. Solução de Problemas (Troubleshooting)
+
+| Sintoma | Causa Provável | Ação Recomendada |
+|---|---|---|
+| Porta 8000 ocupada | Outro processo local está utilizando a porta 8000 | Inicie com porta alternativa: `.\scripts\start_ecobi.ps1 -Port 8001` |
+| Navegador não abre automaticamente | Política do sistema ou navegador padrão não configurado | Acesse manualmente `http://127.0.0.1:8000` no seu navegador web |
+| Erro de banco de dados bloqueado | Processo anterior travou ou outra instância está aberta | Feche as instâncias do Python via Gerenciador de Tarefas e reinicie |
+| Backup não verificado | Alteração manual indevida no arquivo `.db.bak` | Consulte o relatório em `POST /api/system/backups/{id}/verify` para ver as divergências detectadas |
+
+---
+
+## 8. Procedimento de Encerramento e Desinstalação
+
+- **Encerramento Limpo**: Pressione `Ctrl+C` na janela do console do launcher. O Uvicorn e o Agendador concluirão as tarefas ativas e fecharão as conexões SQLite com segurança.
+- **Desinstalação**: Como o EcoBI é uma aplicação local autocontida, basta remover a pasta do projeto. Nenhum registro invasivo no Registro do Windows ou serviço residual é deixado no sistema.
