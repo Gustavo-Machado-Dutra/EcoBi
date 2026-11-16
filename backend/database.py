@@ -460,12 +460,59 @@ CREATE INDEX IF NOT EXISTS idx_lora_evaluations_created_at ON lora_evaluations(c
 PRAGMA foreign_keys = ON;
 """
 
+MIGRATION_006_SQL = """
+-- Agendamento de rotinas operacionais (Fase 4: ECOBI-21)
+CREATE TABLE IF NOT EXISTS scheduled_jobs (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    job_type TEXT NOT NULL CHECK(job_type IN ('connector_sync', 'sqlite_backup', 'data_quality_audit')),
+    project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+    connector_id TEXT REFERENCES data_connectors(id) ON DELETE CASCADE,
+    interval_minutes INTEGER NOT NULL DEFAULT 60,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    max_retries INTEGER NOT NULL DEFAULT 3,
+    retention_days INTEGER DEFAULT 30,
+    max_backups INTEGER DEFAULT 10,
+    last_run_at TEXT,
+    next_run_at TEXT,
+    last_status TEXT CHECK(last_status IN ('SUCCESS', 'FAILED', 'NO_CHANGES', 'SKIPPED_LOCKED', NULL)),
+    last_error TEXT,
+    created_by TEXT NOT NULL DEFAULT 'system',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_type ON scheduled_jobs(job_type);
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_active ON scheduled_jobs(is_active);
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_project ON scheduled_jobs(project_id);
+
+CREATE TABLE IF NOT EXISTS job_execution_logs (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL REFERENCES scheduled_jobs(id) ON DELETE CASCADE,
+    job_type TEXT NOT NULL,
+    project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    status TEXT NOT NULL CHECK(status IN ('RUNNING', 'SUCCESS', 'FAILED', 'NO_CHANGES', 'SKIPPED_LOCKED')),
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    duration_ms REAL,
+    records_processed INTEGER DEFAULT 0,
+    summary_json TEXT NOT NULL DEFAULT '{}',
+    error_message TEXT,
+    triggered_by TEXT NOT NULL DEFAULT 'scheduler'
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_execution_logs_job ON job_execution_logs(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_execution_logs_status ON job_execution_logs(status);
+CREATE INDEX IF NOT EXISTS idx_job_execution_logs_started ON job_execution_logs(started_at);
+"""
+
 MIGRATIONS: List[Tuple[int, str, str]] = [
     (1, "001_initial_schema", MIGRATION_001_SQL),
     (2, "002_sessions_mappings_description", MIGRATION_002_SQL),
     (3, "003_phase2_drift_backups_benchmarks", MIGRATION_003_SQL),
     (4, "004_phase3_connectors_recalibration_lora", MIGRATION_004_SQL),
     (5, "005_phase3_lora_evaluations_inconclusive", MIGRATION_005_SQL),
+    (6, "006_phase4_scheduler_multiproject", MIGRATION_006_SQL),
 ]
 
 # Fatores oficiais de referência deterministicamente cadastrados
@@ -675,6 +722,27 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
                     (version, name, utc_now_iso()),
                 )
             logger.info("Migração %03d (%s) aplicada com sucesso.", version, name)
+
+
+def get_applied_migrations(conn: Optional[sqlite3.Connection] = None) -> List[int]:
+    """Retorna lista ordenada das versões das migrações já aplicadas no banco de dados."""
+    def _execute(target_conn: sqlite3.Connection) -> List[int]:
+        target_conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT NOT NULL
+            );
+            """
+        )
+        rows = target_conn.execute("SELECT version FROM schema_migrations ORDER BY version ASC;").fetchall()
+        return [int(r[0] if isinstance(r, (tuple, list)) else r["version"]) for r in rows]
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
 
 
 def bootstrap_defaults(
@@ -1652,6 +1720,53 @@ def get_validation_by_analysis(analysis_id: str, conn: Optional[sqlite3.Connecti
         return _row_to_dict(c.execute(query, (analysis_id,)).fetchone())
 
 
+def list_validations(
+    project_id: Optional[str] = None,
+    analysis_id: Optional[str] = None,
+    limit: int = 50,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista validações registradas, com filtros opcionais por projeto e análise."""
+    query = "SELECT * FROM validations"
+    conditions = []
+    params: List[Any] = []
+    if project_id:
+        conditions.append("project_id = ?")
+        params.append(project_id)
+    if analysis_id:
+        conditions.append("analysis_id = ?")
+        params.append(analysis_id)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY created_at DESC LIMIT ?;"
+    params.append(limit)
+
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        rows = target_conn.execute(query, tuple(params)).fetchall()
+        result: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r) if hasattr(r, "keys") else {
+                "id": r[0],
+                "analysis_id": r[1],
+                "project_id": r[2],
+                "status": r[3],
+                "rules_json": r[4],
+                "discrepancies_json": r[5],
+                "metrics_json": r[6],
+                "esg_methodology_json": r[7],
+                "created_at": r[8],
+            }
+            d["validation_status"] = d.get("status")
+            result.append(d)
+        return result
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+
 # ============================================================================
 # Operações CRUD: PowerBI Reports
 # ============================================================================
@@ -1983,6 +2098,8 @@ def purge_expired_project_data(
                         pass
 
             with transaction(target_conn):
+                target_conn.execute("DELETE FROM job_execution_logs WHERE project_id = ?;", (pid,))
+                target_conn.execute("DELETE FROM scheduled_jobs WHERE project_id = ?;", (pid,))
                 target_conn.execute("DELETE FROM connector_ingestion_runs WHERE project_id = ?;", (pid,))
                 target_conn.execute("DELETE FROM data_connectors WHERE project_id = ?;", (pid,))
                 target_conn.execute("DELETE FROM recalibration_proposals WHERE project_id = ?;", (pid,))
@@ -3070,5 +3187,367 @@ def list_lora_evaluations(
         return _execute(conn)
     with get_db_context() as c:
         return _execute(c)
+
+
+# ============================================================================
+# Fase 4: Automação Operacional (Scheduler) e Histórico de Execuções (ECOBI-21)
+# ============================================================================
+
+def create_scheduled_job(
+    name: str,
+    job_type: str,
+    project_id: Optional[str] = None,
+    connector_id: Optional[str] = None,
+    interval_minutes: int = 60,
+    is_active: bool = True,
+    max_retries: int = 3,
+    retention_days: int = 30,
+    max_backups: int = 10,
+    created_by: str = "system",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Cadastra uma rotina agendada periódica (connector_sync, sqlite_backup ou data_quality_audit)."""
+    valid_types = ("connector_sync", "sqlite_backup", "data_quality_audit")
+    if job_type not in valid_types:
+        raise ValueError(f"job_type inválido '{job_type}'. Esperado um de: {valid_types}")
+    if interval_minutes <= 0:
+        raise ValueError("interval_minutes deve ser maior que zero.")
+
+    job_id = f"job_{uuid.uuid4().hex[:12]}"
+    now_str = utc_now_iso()
+    next_run_dt = datetime.now(timezone.utc) + timedelta(minutes=interval_minutes)
+    next_run_str = next_run_dt.isoformat()
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO scheduled_jobs (
+                    id, name, job_type, project_id, connector_id,
+                    interval_minutes, is_active, max_retries, retention_days,
+                    max_backups, next_run_at, created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    job_id,
+                    name.strip(),
+                    job_type,
+                    project_id,
+                    connector_id,
+                    int(interval_minutes),
+                    1 if is_active else 0,
+                    int(max_retries),
+                    int(retention_days),
+                    int(max_backups),
+                    next_run_str,
+                    created_by,
+                    now_str,
+                    now_str,
+                ),
+            )
+            log_audit(
+                actor=created_by,
+                action="CREATE_SCHEDULED_JOB",
+                resource_type="scheduled_job",
+                resource_id=job_id,
+                project_id=project_id,
+                details={
+                    "name": name,
+                    "job_type": job_type,
+                    "interval_minutes": interval_minutes,
+                    "connector_id": connector_id,
+                },
+                conn=target_conn,
+            )
+        return get_scheduled_job(job_id, conn=target_conn)  # type: ignore
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def get_scheduled_job(
+    job_id: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Recupera um job agendado pelo seu ID."""
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        row = target_conn.execute(
+            "SELECT * FROM scheduled_jobs WHERE id = ?;", (job_id,)
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["is_active"] = bool(d["is_active"])
+        return d
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_scheduled_jobs(
+    project_id: Optional[str] = None,
+    job_type: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista jobs agendados aplicando filtros opcionais."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        query = "SELECT * FROM scheduled_jobs WHERE 1=1"
+        params: List[Any] = []
+        if project_id:
+            query += " AND (project_id = ? OR project_id IS NULL)"
+            params.append(project_id)
+        if job_type:
+            query += " AND job_type = ?"
+            params.append(job_type)
+        if is_active is not None:
+            query += " AND is_active = ?"
+            params.append(1 if is_active else 0)
+        query += " ORDER BY created_at DESC;"
+        rows = target_conn.execute(query, params).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["is_active"] = bool(d["is_active"])
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def update_scheduled_job(
+    job_id: str,
+    is_active: Optional[bool] = None,
+    interval_minutes: Optional[int] = None,
+    last_run_at: Optional[str] = None,
+    next_run_at: Optional[str] = None,
+    last_status: Optional[str] = None,
+    last_error: Optional[str] = None,
+    name: Optional[str] = None,
+    actor: str = "system",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Atualiza atributos operacionais de um job agendado."""
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        existing = get_scheduled_job(job_id, conn=target_conn)
+        if not existing:
+            return None
+
+        fields: List[str] = []
+        values: List[Any] = []
+
+        if is_active is not None:
+            fields.append("is_active = ?")
+            values.append(1 if is_active else 0)
+        if interval_minutes is not None:
+            fields.append("interval_minutes = ?")
+            values.append(int(interval_minutes))
+        if last_run_at is not None:
+            fields.append("last_run_at = ?")
+            values.append(last_run_at)
+        if next_run_at is not None:
+            fields.append("next_run_at = ?")
+            values.append(next_run_at)
+        if last_status is not None:
+            fields.append("last_status = ?")
+            values.append(last_status)
+        if last_error is not None:
+            fields.append("last_error = ?")
+            values.append(last_error)
+        if name is not None:
+            fields.append("name = ?")
+            values.append(name.strip())
+
+        if not fields:
+            return existing
+
+        fields.append("updated_at = ?")
+        values.append(utc_now_iso())
+        values.append(job_id)
+
+        with transaction(target_conn):
+            target_conn.execute(
+                f"UPDATE scheduled_jobs SET {', '.join(fields)} WHERE id = ?;",
+                values,
+            )
+            log_audit(
+                actor=actor,
+                action="UPDATE_SCHEDULED_JOB",
+                resource_type="scheduled_job",
+                resource_id=job_id,
+                project_id=existing.get("project_id"),
+                details={"updated_fields": fields},
+                conn=target_conn,
+            )
+        return get_scheduled_job(job_id, conn=target_conn)
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def delete_scheduled_job(
+    job_id: str,
+    actor: str = "system",
+    conn: Optional[sqlite3.Connection] = None,
+) -> bool:
+    """Remove um job agendado e seus logs associados."""
+    def _execute(target_conn: sqlite3.Connection) -> bool:
+        existing = get_scheduled_job(job_id, conn=target_conn)
+        if not existing:
+            return False
+        with transaction(target_conn):
+            target_conn.execute("DELETE FROM scheduled_jobs WHERE id = ?;", (job_id,))
+            log_audit(
+                actor=actor,
+                action="DELETE_SCHEDULED_JOB",
+                resource_type="scheduled_job",
+                resource_id=job_id,
+                project_id=existing.get("project_id"),
+                details={"name": existing.get("name")},
+                conn=target_conn,
+            )
+        return True
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def create_job_execution_log(
+    job_id: str,
+    job_type: str,
+    project_id: Optional[str] = None,
+    status: str = "RUNNING",
+    summary: Optional[Dict[str, Any]] = None,
+    triggered_by: str = "scheduler",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Dict[str, Any]:
+    """Registra o início de uma execução de rotina agendada."""
+    log_id = f"jlog_{uuid.uuid4().hex[:12]}"
+    now_str = utc_now_iso()
+    summary_json = _to_json_str(summary or {})
+
+    def _execute(target_conn: sqlite3.Connection) -> Dict[str, Any]:
+        with transaction(target_conn):
+            target_conn.execute(
+                """
+                INSERT INTO job_execution_logs (
+                    id, job_id, job_type, project_id, status,
+                    started_at, summary_json, triggered_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    log_id,
+                    job_id,
+                    job_type,
+                    project_id,
+                    status,
+                    now_str,
+                    summary_json,
+                    triggered_by,
+                ),
+            )
+        row = target_conn.execute(
+            "SELECT * FROM job_execution_logs WHERE id = ?;", (log_id,)
+        ).fetchone()
+        d = dict(row)
+        d["summary"] = _from_json_str(d.get("summary_json"), {})
+        return d
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def update_job_execution_log(
+    log_id: str,
+    status: str,
+    duration_ms: Optional[float] = None,
+    records_processed: int = 0,
+    summary: Optional[Dict[str, Any]] = None,
+    error_message: Optional[str] = None,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Atualiza o resultado final de uma execução de rotina agendada."""
+    now_str = utc_now_iso()
+    summary_json = _to_json_str(summary or {}) if summary is not None else None
+
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        fields = ["status = ?", "completed_at = ?", "records_processed = ?"]
+        values: List[Any] = [status, now_str, int(records_processed)]
+        if duration_ms is not None:
+            fields.append("duration_ms = ?")
+            values.append(float(duration_ms))
+        if summary_json is not None:
+            fields.append("summary_json = ?")
+            values.append(summary_json)
+        if error_message is not None:
+            fields.append("error_message = ?")
+            values.append(error_message)
+        values.append(log_id)
+
+        with transaction(target_conn):
+            target_conn.execute(
+                f"UPDATE job_execution_logs SET {', '.join(fields)} WHERE id = ?;",
+                values,
+            )
+        row = target_conn.execute(
+            "SELECT * FROM job_execution_logs WHERE id = ?;", (log_id,)
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["summary"] = _from_json_str(d.get("summary_json"), {})
+        return d
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
+def list_job_execution_logs(
+    job_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    limit: int = 50,
+    conn: Optional[sqlite3.Connection] = None,
+) -> List[Dict[str, Any]]:
+    """Lista histórico de logs de execuções de rotinas agendadas."""
+    def _execute(target_conn: sqlite3.Connection) -> List[Dict[str, Any]]:
+        query = "SELECT * FROM job_execution_logs WHERE 1=1"
+        params: List[Any] = []
+        if job_id:
+            query += " AND job_id = ?"
+            params.append(job_id)
+        if project_id:
+            query += " AND (project_id = ? OR project_id IS NULL)"
+            params.append(project_id)
+        query += " ORDER BY started_at DESC LIMIT ?;"
+        params.append(limit)
+
+        rows = target_conn.execute(query, params).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["summary"] = _from_json_str(d.get("summary_json"), {})
+            results.append(d)
+        return results
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
 
 
