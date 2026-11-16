@@ -469,7 +469,7 @@ def profile_dataset_quality(
         duplicate_periods_count = int(df.duplicated(subset=[period_col]).sum())
         # Avaliação de parsing de data e lacunas mensais
         try:
-            parsed_dates = pd.to_datetime(df[period_col], errors="coerce")
+            parsed_dates = pd.to_datetime(df[period_col], errors="coerce", format="mixed", dayfirst=True)
             invalid_dates_count = int(parsed_dates.isnull().sum())
             valid_dates = parsed_dates.dropna().sort_values()
             if len(valid_dates) > 1:
