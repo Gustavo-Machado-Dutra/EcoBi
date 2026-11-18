@@ -1,0 +1,177 @@
+{
+  "audit_date": "2026-11-17",
+  "overall_readiness": "blocked_for_multi_user_operation",
+  "evidence_types": {
+    "synthetic_automated": true,
+    "isolated_integration": true,
+    "real_corporate_sources": false
+  },
+  "tests": {
+    "full_pytest": {
+      "command": ".venv/Scripts/python.exe -m pytest -q --basetemp <unique .codex-tmp path>",
+      "result": "37 passed, 1 warning",
+      "warning": "StarletteDeprecationWarning from installed FastAPI TestClient/httpx integration",
+      "duration_seconds": 233.27
+    },
+    "interim_test_failure": "One early quality-audit test used literal backslash-n CSV content; the fixture was corrected, focused rerun passed, and the final full suite passed.",
+    "scheduler_and_security_focused": "passed; final full suite includes all current tests",
+    "node_check": "passed",
+    "git_diff_check": "passed",
+    "json_parse": "passed"
+  },
+  "sqlite": {
+    "main_database_access": "read-only",
+    "main_integrity_check": "ok",
+    "main_journal_mode": "wal",
+    "main_applied_migrations": 6,
+    "main_foreign_key_violations": 0,
+    "isolated_wal": "passed",
+    "isolated_foreign_keys": true,
+    "isolated_busy_timeout_ms": 30000,
+    "isolated_rollback": "passed",
+    "main_database_modified": false
+  },
+  "fixes": [
+    {
+      "area": "session_rbac",
+      "change": "Self-service session schema only accepts analyst; elevated roles require local provisioning.",
+      "regression": "admin role attempt rejected with HTTP 422"
+    },
+    {
+      "area": "scheduled_quality_audit",
+      "change": "Scheduled quality audits now profile datasets and persist report identifiers.",
+      "regression": "isolated dataset receives a new quality report after due-job dispatch"
+    }
+  ],
+  "readiness_matrix": [
+    {
+      "module": "projects_crud",
+      "status": "approved_partially",
+      "evidence": "synthetic CRUD tests pass; ownerless project is readable across sessions"
+    },
+    {
+      "module": "dataset_import_quality",
+      "status": "approved_partially",
+      "evidence": "synthetic CSV/XLSX/adverse inputs and scheduled profiling"
+    },
+    {
+      "module": "financial_esg",
+      "status": "approved_partially",
+      "evidence": "synthetic deterministic integration tests; no corporate reconciliation"
+    },
+    {
+      "module": "predictive_what_if",
+      "status": "approved_partially",
+      "evidence": "synthetic backtesting and bounded simulation tests"
+    },
+    {
+      "module": "local_assistant",
+      "status": "approved_partially",
+      "evidence": "mocked tool calling; live Ollama not verified; BLOCK_EXTERNAL_AI true"
+    },
+    {
+      "module": "validation_powerbi",
+      "status": "approved_partially",
+      "evidence": "synthetic validation gates, PBIP generation and deduplication tests"
+    },
+    {
+      "module": "audit_history",
+      "status": "approved_partially",
+      "evidence": "synthetic audit paths; identity-based partitioning not established"
+    },
+    {
+      "module": "multiproject",
+      "status": "blocked",
+      "evidence": "cross-session read of ownerless project returned HTTP 200"
+    },
+    {
+      "module": "scheduler",
+      "status": "approved_partially",
+      "evidence": "isolated due dispatch, next-run persistence, connector and backup/restore tests; crash and multi-process recovery open"
+    },
+    {
+      "module": "sqlite",
+      "status": "approved_partially",
+      "evidence": "read-only main integrity and isolated WAL/rollback checks"
+    },
+    {
+      "module": "windows_runtime",
+      "status": "approved_partially",
+      "evidence": "automated launcher check-only; live packaged startup/shutdown not rerun"
+    },
+    {
+      "module": "security_lgpd",
+      "status": "blocked_for_multi_user",
+      "evidence": "self-service role escalation fixed; user identity/project membership remain unresolved"
+    }
+  ],
+  "not_executed": [
+    "real corporate data or external connector",
+    "live Ollama inference",
+    "real wall-clock scheduler interval",
+    "multi-process scheduler contention and abrupt-crash recovery",
+    "restore over the primary database",
+    "live packaged server graceful shutdown",
+    "current-round visual screenshot review"
+  ],
+  "residual_risks": [
+    "Unauthenticated self-service identities have no user_id; project-level authorization is inconsistent across endpoints.",
+    "Scheduler locks are process-local and stale RUNNING log reconciliation was not verified.",
+    "Corporate data correctness and performance have not been validated using synthetic evidence."
+  ],
+  "git_commit": "not_attempted",
+  "local_security_hardening": {
+    "date": "2026-11-17",
+    "architecture": "single-user local-first; no multi-user authentication added",
+    "bind": {
+      "policy": "IPv4 loopback only",
+      "default": "127.0.0.1",
+      "ipv6_loopback_enabled": false,
+      "launcher_host_override": "only 127.0.0.1 accepted",
+      "port_policy": "configurable 1-65535",
+      "isolated_live_launcher": "default and alternate port startup; healthy response; listener addresses were 127.0.0.1 only",
+      "active_qa_listener": {
+        "address": "127.0.0.1",
+        "port": 8002,
+        "pid": 34436,
+        "process": "python"
+      }
+    },
+    "request_guards": {
+      "trusted_hosts": [
+        "127.0.0.1",
+        "localhost"
+      ],
+      "host_port": "must equal effective ASGI listener port; malformed authorities rejected",
+      "origins": "explicit local origins derived from configured port; null and external origins rejected",
+      "mutations_without_origin": "rejected",
+      "fetch_metadata": "cross-site and other non-same-origin values rejected when present",
+      "websockets": "same local Origin required; external Origin rejected",
+      "cors_wildcard": false
+    },
+    "ai_egress": {
+      "allowed_endpoint": "http://127.0.0.1:11434",
+      "redirects_followed": false,
+      "block_external_ai": true,
+      "live_ollama_listener_observed": false,
+      "live_inference_verified": false
+    },
+    "tests": {
+      "focused_security": "14 passed, 1 Starlette/httpx deprecation warning",
+      "full_pytest": "47 passed, 1 Starlette/httpx deprecation warning, 211.72 seconds",
+      "node_check": "passed",
+      "git_diff_check": "passed",
+      "json_parse_before_update": "passed",
+      "live_api_health": "HTTP 200 at 127.0.0.1:8002; block_external_ai=true",
+      "launchers": "isolated default and alternate port runs were healthy and loopback-only"
+    },
+    "residual_risks": [
+      "No live Ollama service was present, so live inference was not verified.",
+      "The current QA process on port 8002 predates this code; the newly hardened build was verified in isolated launcher runs.",
+      "No IPv6 listener is configured or supported by the current launcher.",
+      "Loopback does not isolate the application from other processes running under the same Windows user account.",
+      "Development-server origin 5173 is not in the production local-origin allowlist."
+    ],
+    "git_commit": "not_attempted"
+  }
+}

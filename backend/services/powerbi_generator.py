@@ -659,6 +659,7 @@ def generate_pbip_project(
     validation_rows: List[Dict[str, Any]] = []
 
     expected_kpis_for_check: Dict[str, Any] = {}
+    monthly_rows_by_source: Dict[tuple, Dict[str, Any]] = {}
 
     for aid in analysis_ids:
         an = analyses_map[aid]
@@ -674,9 +675,13 @@ def generate_pbip_project(
 
         # Fatos Mensais de Análise Financeira/ESG
         if an_type == "financial_esg":
+            dataset_id = str(an.get("dataset_id") or "")
+            if not dataset_id:
+                raise ValueError(f"A análise financeira '{aid}' não possui dataset de origem para reconciliação.")
+            source_row_occurrences: Dict[tuple, int] = {}
+            analysis_monthly_rows: List[Dict[str, Any]] = []
             for m in res_data.get("monthly_series", []):
-                # Evita duplicar se múltiplas análises compartilharem períodos
-                monthly_rows.append({
+                monthly_row = {
                     "Periodo": str(m.get("periodo", "")),
                     "ReceitaBruta": float(m.get("receita_bruta", 0.0)),
                     "ImpostosDevolucoes": float(m.get("impostos_devolucoes", 0.0)),
@@ -697,12 +702,44 @@ def generate_pbip_project(
                     "Scope3CO2eTons": float(m.get("scope3_co2e_tons", 0.0)),
                     "TotalGrossEmissionsCO2eTons": float(m.get("total_gross_emissions_co2e_tons", 0.0)),
                     "CreditosCarbonoTCO2e": float(m.get("creditos_carbono_tco2e", 0.0)),
-                })
+                }
+                analysis_monthly_rows.append(monthly_row)
+                source_row_id = m.get("source_row_id")
+                if source_row_id is None:
+                    source_signature = (dataset_id, tuple(monthly_row.items()))
+                    occurrence = source_row_occurrences.get(source_signature, 0)
+                    source_row_occurrences[source_signature] = occurrence + 1
+                    source_key = (*source_signature, occurrence)
+                else:
+                    source_key = (dataset_id, str(source_row_id))
+
+                existing_row = monthly_rows_by_source.get(source_key)
+                if existing_row is not None:
+                    if existing_row != monthly_row:
+                        raise ValueError(
+                            f"Período de origem inconsistente em análises financeiras do dataset '{dataset_id}'."
+                        )
+                    continue
+                monthly_rows_by_source[source_key] = monthly_row
+                monthly_rows.append(monthly_row)
 
             fin_k = res_data.get("financial_kpis", {})
             esg_k = res_data.get("esg_kpis", {})
-            expected_kpis_for_check["receita_liquida_total"] = fin_k.get("receita_liquida_total", 0.0)
-            expected_kpis_for_check["total_gross_emissions_co2e_tons"] = esg_k.get("total_gross_emissions_co2e_tons", 0.0)
+            source_totals = {
+                "receita_liquida_total": (
+                    sum(row["ReceitaLiquida"] for row in analysis_monthly_rows),
+                    float(fin_k.get("receita_liquida_total", 0.0)),
+                ),
+                "total_gross_emissions_co2e_tons": (
+                    sum(row["TotalGrossEmissionsCO2eTons"] for row in analysis_monthly_rows),
+                    float(esg_k.get("total_gross_emissions_co2e_tons", 0.0)),
+                ),
+            }
+            for metric, (source_total, analysis_total) in source_totals.items():
+                if abs(source_total - analysis_total) > 1e-4:
+                    raise ValueError(
+                        f"A série mensal da análise '{aid}' não reconcilia com o KPI '{metric}'."
+                    )
 
         # Fatos de Cenários What-If
         elif an_type == "scenario":
@@ -754,6 +791,19 @@ def generate_pbip_project(
             "RegrasAprovadas": passed_rules,
             "Ressalvas": str(val.get("discrepancies_json", "Nenhuma")),
         })
+
+    if monthly_rows:
+        expected_kpis_for_check = {
+            "receita_bruta_total": round(sum(row["ReceitaBruta"] for row in monthly_rows), 2),
+            "receita_liquida_total": round(sum(row["ReceitaLiquida"] for row in monthly_rows), 2),
+            "total_gross_emissions_co2e_tons": round(
+                sum(row["TotalGrossEmissionsCO2eTons"] for row in monthly_rows), 4
+            ),
+            "scope1_co2e_tons": round(sum(row["Scope1CO2eTons"] for row in monthly_rows), 4),
+            "scope2_co2e_tons": round(sum(row["Scope2CO2eTons"] for row in monthly_rows), 4),
+            "scope3_co2e_tons": round(sum(row["Scope3CO2eTons"] for row in monthly_rows), 4),
+            "creditos_carbono_tco2e": round(sum(row["CreditosCarbonoTCO2e"] for row in monthly_rows), 4),
+        }
 
     # Geração da DimCalendario baseada nos períodos encontrados
     calendar_rows: List[Dict[str, Any]] = []

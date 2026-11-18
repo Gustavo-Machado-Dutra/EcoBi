@@ -86,6 +86,9 @@ CSV_CHUNK_SIZE: int = int(os.getenv("ECOBI_CSV_CHUNK_SIZE", "10000"))
 # Parâmetros de Inferência Local Ollama (Qwen 3.5)
 # ============================================================================
 
+ECOBI_HOST: str = "127.0.0.1"
+ECOBI_PORT: int = int(os.getenv("ECOBI_PORT", "8000"))
+LOCAL_ALLOWED_ORIGINS = [f"http://127.0.0.1:{ECOBI_PORT}", f"http://localhost:{ECOBI_PORT}"]
 OLLAMA_URL: str = os.getenv("ECOBI_OLLAMA_URL", "http://127.0.0.1:11434")
 DEFAULT_MODEL: str = os.getenv("ECOBI_DEFAULT_MODEL", "qwen3.5:4b")
 ADVANCED_MODEL: str = os.getenv("ECOBI_ADVANCED_MODEL", "qwen3.5:9b")
@@ -98,7 +101,7 @@ LLM_TIMEOUT_SECONDS: int = int(os.getenv("ECOBI_LLM_TIMEOUT_SECONDS", "60"))
 # Segurança, Privacidade e LGPD
 # ============================================================================
 
-BLOCK_EXTERNAL_AI: bool = os.getenv("ECOBI_BLOCK_EXTERNAL_AI", "true").lower() in ("true", "1", "yes")
+BLOCK_EXTERNAL_AI: bool = True
 MASK_PII: bool = os.getenv("ECOBI_MASK_PII", "true").lower() in ("true", "1", "yes")
 LOCAL_SECRET: str = os.getenv("ECOBI_LOCAL_SECRET", "ecobi-local-dev-change-in-production")
 DEFAULT_RETENTION_DAYS: int = int(os.getenv("ECOBI_DEFAULT_RETENTION_DAYS", "365"))

@@ -127,6 +127,7 @@ def run_financial_esg_analysis(
 
     raw_df = load_dataset_dataframe(record)
     df = _resolve_canonical_dataframe(raw_df, dataset_id)
+    df["_source_row_id"] = range(len(df))
 
     # Filtragem temporal opcional
     if "periodo" in df.columns:
@@ -367,6 +368,7 @@ def run_financial_esg_analysis(
 
         monthly_series.append({
             "periodo": per,
+            "source_row_id": int(row.get("_source_row_id", idx)),
             "receita_bruta": round(rb, 2),
             "impostos_devolucoes": round(imp, 2),
             "receita_liquida": round(rl, 2),

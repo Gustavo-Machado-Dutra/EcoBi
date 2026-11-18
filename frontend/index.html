@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="EcoBI Intelligence — Plataforma Corporativa Local-First de Inteligência Financeira, Preditiva, Simulação What-If, Governança ESG e Exportação Nativa Power BI (PBIP/PBIR).">
   <meta name="theme-color" content="#183A32">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <title>EcoBI Intelligence — Inteligência Financeira, ESG &amp; Governança Local-First</title>
+  <script>
+    try {
+      document.documentElement.setAttribute("data-theme", localStorage.getItem("ecobi_theme_preference") === "dark" ? "dark" : "light");
+    } catch {}
+  </script>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -20,40 +26,19 @@
          ==================================================================== -->
     <aside id="app-sidebar" class="sidebar" aria-label="Menu Lateral de Módulos EcoBI">
       <div class="sidebar-brand">
-        <div class="brand-logo" aria-hidden="true">
+        <button type="button" id="btn-toggle-sidebar" class="brand-logo brand-logo-toggle" aria-label="Recolher menu lateral" aria-controls="app-sidebar" aria-expanded="true" title="Recolher menu">
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2C6.5 2 3 6.5 3 12c0 4.2 2.5 7.8 6.2 9.2.5.2.8-.2.8-.7v-3.5c0-2.8 2.2-5 5-5h4.3c.5 0 .7-.3.7-.8C20 5.5 16.5 2 12 2z"/>
             <path d="M9 17c0-4.5 3.5-8 8-8"/>
             <path d="M7 11h3v6"/>
           </svg>
-        </div>
-        <div class="brand-copy">
-          <span class="brand-title">EcoBI Intelligence</span>
-          <span class="brand-subtitle">Local-First ESG &amp; BI Suite</span>
-        </div>
-        <button type="button" id="btn-close-sidebar" class="icon-btn sidebar-close-btn" aria-label="Fechar menu de navegação">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
         </button>
+        <span class="sidebar-brand-name">EcoBI Intelligence</span>
       </div>
 
-      <div class="sidebar-context-card">
-        <div class="context-card-header">
-          <span class="context-label">PROJETO ATIVO</span>
-          <span id="sidebar-project-sector" class="context-sector-tag">Varejo</span>
-        </div>
-        <div id="sidebar-project-name" class="context-project-name">Carregando projeto...</div>
-        <div class="context-meta-row">
-          <span id="sidebar-dataset-badge" class="context-meta-pill">Sem dataset</span>
-          <span id="sidebar-validation-badge" class="context-meta-pill">Governança ativa</span>
-        </div>
-      </div>
-
-      <nav class="sidebar-nav" aria-label="Fluxo Principal das 10 Telas">
+      <nav class="sidebar-nav" aria-label="Navegação principal dos módulos EcoBI">
         <div class="nav-group">
-          <span class="nav-group-title">1. Estratégia &amp; Contexto</span>
+          <span class="nav-group-title">Estratégia</span>
           <button type="button" class="nav-item active" data-view="view-dashboard" id="nav-btn-dashboard" aria-current="page">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="3" width="7" height="9" rx="1"></rect>
@@ -61,48 +46,44 @@
               <rect x="14" y="12" width="7" height="9" rx="1"></rect>
               <rect x="3" y="16" width="7" height="5" rx="1"></rect>
             </svg>
-            <span class="nav-text">1. Dashboard Inicial</span>
+            <span class="nav-text">Visão Executiva</span>
           </button>
           <button type="button" class="nav-item" data-view="view-projects" id="nav-btn-projects">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
-            <span class="nav-text">2. Projetos &amp; LGPD</span>
+            <span class="nav-text">Projetos &amp; LGPD</span>
           </button>
-        </div>
-
-        <div class="nav-group">
-          <span class="nav-group-title">2. Engenharia de Dados</span>
           <button type="button" class="nav-item" data-view="view-import" id="nav-btn-import">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <span class="nav-text">3. Importação de Dados</span>
+            <span class="nav-text">Importação de Dados</span>
           </button>
+        </div>
+
+        <div class="nav-group">
+          <span class="nav-group-title">Análise</span>
           <button type="button" class="nav-item" data-view="view-quality" id="nav-btn-quality">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
               <polyline points="9 12 11 14 15 10"></polyline>
             </svg>
-            <span class="nav-text">4. Qualidade &amp; Schema</span>
+            <span class="nav-text">Qualidade &amp; Schema</span>
           </button>
-        </div>
-
-        <div class="nav-group">
-          <span class="nav-group-title">3. Inteligência &amp; Modelagem</span>
           <button type="button" class="nav-item" data-view="view-assistant" id="nav-btn-assistant">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
             </svg>
-            <span class="nav-text">5. Assistente IA &amp; ESG</span>
+            <span class="nav-text">Assistente IA &amp; ESG</span>
           </button>
           <button type="button" class="nav-item" data-view="view-predictive" id="nav-btn-predictive">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
             </svg>
-            <span class="nav-text">6. Resultados Preditivos</span>
+            <span class="nav-text">Resultados Preditivos</span>
           </button>
           <button type="button" class="nav-item" data-view="view-simulator" id="nav-btn-simulator">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -116,18 +97,18 @@
               <line x1="9" y1="8" x2="15" y2="8"></line>
               <line x1="17" y1="16" x2="23" y2="16"></line>
             </svg>
-            <span class="nav-text">7. Simulador What-If</span>
+            <span class="nav-text">Simulador What-If</span>
           </button>
         </div>
 
         <div class="nav-group">
-          <span class="nav-group-title">4. Governança &amp; Entrega</span>
+          <span class="nav-group-title">Governança</span>
           <button type="button" class="nav-item" data-view="view-validation" id="nav-btn-validation">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M9 11l3 3L22 4"></path>
               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
             </svg>
-            <span class="nav-text">8. Central de Validação</span>
+            <span class="nav-text">Validação</span>
           </button>
           <button type="button" class="nav-item" data-view="view-powerbi" id="nav-btn-powerbi">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -135,7 +116,7 @@
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
-            <span class="nav-text">9. Relatórios Power BI</span>
+            <span class="nav-text">Relatórios Power BI</span>
           </button>
           <button type="button" class="nav-item" data-view="view-audit" id="nav-btn-audit">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -144,22 +125,26 @@
               <line x1="16" y1="13" x2="8" y2="13"></line>
               <line x1="16" y1="17" x2="8" y2="17"></line>
             </svg>
-            <span class="nav-text">10. Histórico &amp; Auditoria</span>
+            <span class="nav-text">Histórico, Auditoria e Sistema</span>
           </button>
+        </div>
+
+        <div class="nav-group">
+          <span class="nav-group-title">Operação</span>
           <button type="button" class="nav-item" data-view="view-multiproject" id="nav-btn-multiproject">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
               <line x1="8" y1="21" x2="16" y2="21"></line>
               <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
-            <span class="nav-text">11. Dashboard Multiprojeto</span>
+            <span class="nav-text">Dashboard Multiprojeto</span>
           </button>
           <button type="button" class="nav-item" data-view="view-scheduler" id="nav-btn-scheduler">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span class="nav-text">12. Automações &amp; Agendador</span>
+            <span class="nav-text">Automações &amp; Agendador</span>
           </button>
         </div>
       </nav>
@@ -190,6 +175,7 @@
             </svg>
           </button>
 
+          <span id="topbar-page-title" class="topbar-page-title" aria-live="polite">Visão Executiva</span>
           <div class="topbar-selectors">
             <div class="selector-group">
               <label for="global-project-select" class="selector-label">Projeto:</label>
@@ -204,9 +190,30 @@
               </select>
             </div>
           </div>
+          <div class="global-search">
+            <label class="sr-only" for="global-search-input">Buscar módulos, projetos ou datasets</label>
+            <input id="global-search-input" class="global-search-input" type="search" role="combobox" aria-autocomplete="list" aria-controls="global-search-results" aria-expanded="false" aria-label="Buscar módulos, projetos ou datasets" autocomplete="off" placeholder="Buscar">
+            <div id="global-search-results" class="global-search-results" role="listbox" aria-label="Resultados da busca" hidden></div>
+          </div>
         </div>
 
         <div class="topbar-right">
+          <div class="global-period-filter" role="group" aria-label="Período para a próxima análise financeira e ESG">
+            <div class="form-field">
+              <label for="esg-period-start">Período inicial</label>
+              <input type="month" id="esg-period-start" value="2024-01">
+            </div>
+            <div class="form-field">
+              <label for="esg-period-end">Período final</label>
+              <input type="month" id="esg-period-end" value="2025-12">
+            </div>
+            <span class="global-period-help">Aplica-se somente à próxima análise financeira/ESG.</span>
+          </div>
+          <div class="topbar-system-controls">
+          <button type="button" id="btn-toggle-theme" class="icon-btn theme-toggle-btn" aria-label="Ativar tema escuro" aria-pressed="false" title="Alternar tema de cores">
+            <svg class="theme-icon-light" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path></svg>
+            <svg class="theme-icon-dark" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"></path></svg>
+          </button>
           <!-- Indicador de Orçamento de Memória RAM (<= 8192 MB) -->
           <div class="telemetry-pill" id="topbar-ram-pill" title="Consumo de Memória RAM do EcoBI (Limite: 8192 MB via psutil)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -222,16 +229,16 @@
               <strong id="topbar-ram-text">-- / 8192 MB</strong>
             </div>
             <div class="mini-progress" aria-hidden="true">
-              <div id="topbar-ram-bar" class="mini-progress-fill" style="width: 15%;"></div>
+              <div id="topbar-ram-bar" class="mini-progress-fill" style="width: 0%;"></div>
             </div>
           </div>
 
           <!-- Status do Ollama Local -->
           <div class="telemetry-pill" id="topbar-ollama-pill" title="Status do Modelo Local Ollama">
-            <span id="topbar-ollama-dot" class="status-dot status-online" aria-hidden="true"></span>
+            <span id="topbar-ollama-dot" class="status-dot status-unknown" aria-hidden="true"></span>
             <div class="telemetry-pill-info">
               <span class="telemetry-pill-label">LLM Local</span>
-              <strong id="topbar-ollama-text">qwen3.5:4b</strong>
+              <strong id="topbar-ollama-text" aria-live="polite">Verificando...</strong>
             </div>
           </div>
 
@@ -244,10 +251,11 @@
             <span id="topbar-operator-name">Sessão LGPD</span>
             <span id="topbar-operator-role" class="role-tag">analyst</span>
           </button>
+          </div>
         </div>
       </header>
 
-      <!-- CONTEÚDO PRINCIPAL (10 VIEWS) -->
+      <!-- CONTEÚDO PRINCIPAL (12 VIEWS) -->
       <main id="main-content" class="main-content" tabindex="-1">
 
         <!-- ================================================================
@@ -257,8 +265,9 @@
           <div class="view-header">
             <div>
               <span class="eyebrow">VISÃO EXECUTIVA INTEGRADA · SUSTAINABLE TECH</span>
-              <h1 id="heading-dashboard" class="view-title">Dashboard de Inteligência Financeira &amp; ESG</h1>
+              <h1 id="heading-dashboard" class="view-title">Visão Executiva</h1>
               <p class="view-subtitle">Indicadores determinísticos auditados, orçamento de memória local em tempo real (&le; 8192 MB) e portão de publicação Power BI.</p>
+              <p class="executive-context"><span id="dash-active-project">Selecione um projeto</span><span aria-hidden="true">·</span><span id="dash-active-dataset">Nenhum dataset selecionado</span></p>
             </div>
             <div class="view-header-actions">
               <button type="button" id="btn-run-guided-demo" class="btn btn-secondary">
@@ -279,10 +288,10 @@
           </div>
 
           <!-- Atalhos Funcionais do Fluxo Analítico -->
-          <div class="workflow-ribbon" role="region" aria-label="Atalhos do Fluxo Operacional EcoBI">
+          <div class="workflow-ribbon" role="region" aria-label="Etapas de governança analítica">
             <div class="workflow-ribbon-header">
-              <h2 class="section-subtitle">Fluxo Guiado de Governança Analítica</h2>
-              <span class="workflow-hint">Clique em qualquer etapa para navegar diretamente</span>
+              <h2 class="section-subtitle">Fluxo de governança</h2>
+              <span class="workflow-hint">Selecione uma etapa para abrir o módulo</span>
             </div>
             <div class="workflow-steps-grid">
               <button type="button" class="workflow-step-btn" data-goto-view="view-projects">
@@ -329,28 +338,34 @@
           </div>
 
           <!-- KPIs Financeiros e ESG Validados -->
-          <div class="kpi-grid-4" role="region" aria-label="Indicadores Principais Validados">
+          <div class="kpi-grid-4" role="region" aria-label="Indicadores executivos">
             <article class="kpi-card">
               <div class="kpi-card-top">
-                <span class="kpi-label">Receita Bruta Consolidada</span>
+                <span class="kpi-label">Receita bruta</span>
                 <span id="dash-kpi-validation-badge" class="badge badge-approved">Determinístico</span>
               </div>
               <div id="dash-kpi-revenue" class="kpi-value">R$ --</div>
-              <div id="dash-kpi-revenue-sub" class="kpi-footnote">Receita líquida e impostos auditados via Pandas</div>
+                <div class="kpi-footnote">Fonte: análise financeira</div>
             </article>
 
             <article class="kpi-card">
               <div class="kpi-card-top">
-                <span class="kpi-label">Margem Operacional &amp; Custos</span>
+                <span class="kpi-label">Receita líquida</span>
+                <span class="badge badge-neutral">Financeiro</span>
+              </div>
+              <div id="dash-kpi-net-revenue" class="kpi-value">R$ --</div>
+              <div id="dash-kpi-revenue-sub" class="kpi-footnote">Disponível após calcular análise financeira</div>
+              <div class="kpi-secondary-metric">
+                <span class="kpi-label">Margem operacional</span>
+                <strong id="dash-kpi-margin" class="kpi-secondary-value">--%</strong>
                 <span class="badge badge-neutral">FIN-01</span>
               </div>
-              <div id="dash-kpi-margin" class="kpi-value">--%</div>
               <div id="dash-kpi-cost-sub" class="kpi-footnote">Custos totais: R$ --</div>
             </article>
 
             <article class="kpi-card">
               <div class="kpi-card-top">
-                <span class="kpi-label">Emissões Brutas GEE (Escopos 1+2+3)</span>
+                <span class="kpi-label">Emissões brutas GEE</span>
                 <span class="badge badge-mint">GHG Protocol</span>
               </div>
               <div id="dash-kpi-emissions" class="kpi-value">-- tCO2e</div>
@@ -359,11 +374,93 @@
 
             <article class="kpi-card">
               <div class="kpi-card-top">
-                <span class="kpi-label">Qualidade &amp; Portão Power BI</span>
+                <span class="kpi-label">Qualidade dos dados</span>
                 <span id="dash-gate-badge" class="badge badge-approved">Portão Ativo</span>
               </div>
               <div id="dash-kpi-quality" class="kpi-value">--%</div>
               <div id="dash-kpi-validations-sub" class="kpi-footnote">Análises aprovadas: 0 | Rejeitadas: 0</div>
+            </article>
+          </div>
+
+          <div class="dashboard-analysis-grid" aria-label="Composição de indicadores financeiros e ambientais">
+            <article class="surface-panel quality-analytics-card" aria-labelledby="dash-quality-title">
+              <div class="panel-header">
+                <div>
+                  <h2 id="dash-quality-title" class="panel-title">Qualidade dos dados</h2>
+                  <p class="panel-subtitle">Perfilamento e validações do dataset ativo</p>
+                </div>
+                <button type="button" class="btn btn-ghost" data-goto-view="view-quality">Ver detalhes</button>
+              </div>
+              <div class="quality-score-row">
+                <strong id="dash-quality-score" class="quality-score-value">—%</strong>
+                <span class="badge badge-neutral">Score</span>
+              </div>
+              <progress id="dash-quality-progress" class="quality-progress" max="100" value="0" aria-label="Qualidade dos dados" aria-valuetext="Indicador indisponível até o perfilamento dos dados" hidden></progress>
+              <div class="quality-detail-grid">
+                <div><span>Registros analisados</span><strong id="dash-quality-rows">—</strong></div>
+                <div><span>Alertas encontrados</span><strong id="dash-quality-alerts">—</strong></div>
+              </div>
+              <p class="chart-footnote">Valores aparecem após o perfilamento do dataset selecionado.</p>
+            </article>
+            <article class="surface-panel chart-card" aria-labelledby="dash-finance-chart-title">
+              <div class="panel-header">
+                <div>
+                  <h2 id="dash-finance-chart-title" class="panel-title">Composição financeira</h2>
+                  <p class="panel-subtitle">Valores consolidados da última análise financeira</p>
+                </div>
+                <span class="badge badge-neutral">BRL</span>
+              </div>
+              <div id="dash-finance-chart" class="metric-bars" aria-live="polite">
+                <div class="metric-bar-row" data-metric="gross"><span>Receita bruta</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>R$ --</strong></div>
+                <div class="metric-bar-row" data-metric="net"><span>Receita líquida</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>R$ --</strong></div>
+                <div class="metric-bar-row" data-metric="cost"><span>Custos totais</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>R$ --</strong></div>
+                <div class="metric-bar-row" data-metric="profit"><span>Lucro operacional</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>R$ --</strong></div>
+              </div>
+            </article>
+            <article class="surface-panel chart-card" aria-labelledby="dash-emissions-chart-title">
+              <div class="panel-header">
+                <div>
+                  <h2 id="dash-emissions-chart-title" class="panel-title">Emissões por escopo</h2>
+                  <p class="panel-subtitle">Emissões brutas; compensações não são deduzidas</p>
+                </div>
+                <span class="badge badge-mint">tCO₂e</span>
+              </div>
+              <div id="dash-emissions-chart" class="metric-bars" aria-live="polite">
+                <div class="metric-bar-row" data-metric="scope1"><span>Escopo 1</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>-- tCO₂e</strong></div>
+                <div class="metric-bar-row" data-metric="scope2"><span>Escopo 2</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>-- tCO₂e</strong></div>
+                <div class="metric-bar-row" data-metric="scope3"><span>Escopo 3</span><div class="metric-bar-track"><div class="metric-bar-fill"></div></div><strong>-- tCO₂e</strong></div>
+              </div>
+              <p id="dash-carbon-credits" class="chart-footnote">Créditos de carbono: disponíveis após análise ESG.</p>
+            </article>
+          </div>
+
+          <div class="dashboard-operations-grid">
+            <article class="surface-panel" aria-labelledby="dash-activity-title">
+              <div class="panel-header">
+                <div>
+                  <h2 id="dash-activity-title" class="panel-title">Atividade recente</h2>
+                  <p class="panel-subtitle">Análises e importações do projeto ativo</p>
+                </div>
+                <span class="badge badge-neutral">Projeto atual</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead><tr><th scope="col">Atividade</th><th scope="col">Origem</th><th scope="col">Status</th><th scope="col">Data</th></tr></thead>
+                  <tbody id="dash-activity-tbody"><tr><td class="empty-cell" colspan="4">Ainda não há análises ou importações neste projeto.</td></tr></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="surface-panel" aria-labelledby="dash-ops-title">
+              <div class="panel-header">
+                <div>
+                  <h2 id="dash-ops-title" class="panel-title">Governança operacional</h2>
+                  <p class="panel-subtitle">Estado da validação e qualidade</p>
+                </div>
+              </div>
+              <div class="quality-detail-grid operations-status-grid">
+                <div><span>Validação mais recente</span><strong id="dash-ops-validation">Nenhuma validação registrada</strong></div>
+                <div><span>Alertas de qualidade</span><strong id="dash-ops-alerts">Aguardando perfilamento de dados</strong></div>
+              </div>
             </article>
           </div>
 
@@ -376,9 +473,11 @@
                   <h2 class="panel-title">Governador de Memória RAM Local (psutil)</h2>
                   <p class="panel-subtitle">Monitoramento em tempo real do orçamento rígido de 8192 MB (8 GB)</p>
                 </div>
-                <span id="dash-ram-alert-badge" class="badge badge-approved">NORMAL</span>
+                <span id="dash-ram-alert-badge" class="badge badge-neutral">Verificando...</span>
               </div>
 
+              <details class="system-detail">
+                <summary>Ver telemetria detalhada de memória</summary>
               <div class="ram-gauge-layout">
                 <div class="ram-svg-wrapper">
                   <svg id="dash-ram-gauge-svg" viewBox="0 0 220 135" class="ram-gauge-svg" role="img" aria-label="Medidor de consumo de memória RAM do EcoBI contra o limite de 8192 MB">
@@ -408,6 +507,7 @@
                   </div>
                 </div>
               </div>
+              </details>
             </article>
 
             <!-- Status Ollama & Governança de Ferramentas -->
@@ -420,20 +520,22 @@
                 <span id="dash-ollama-status-badge" class="badge badge-approved">Verificando...</span>
               </div>
 
+              <details class="system-detail">
+                <summary>Ver estado do modelo e controles locais</summary>
               <div class="ollama-status-grid">
                 <div class="stat-box">
                   <span class="stat-box-label">Modelo Ativo</span>
-                  <strong id="dash-model-active">qwen3.5:4b</strong>
+                  <strong id="dash-model-active">Verificando...</strong>
                   <span class="stat-box-hint">Quantização 4-bit padrão</span>
                 </div>
                 <div class="stat-box">
                   <span class="stat-box-label">Janela de Contexto</span>
-                  <strong id="dash-model-ctx">4096 tokens</strong>
+                  <strong id="dash-model-ctx">Verificando...</strong>
                   <span class="stat-box-hint">Keep-alive: 5m</span>
                 </div>
                 <div class="stat-box">
                   <span class="stat-box-label">Perfil Experimental 9B</span>
-                  <strong id="dash-model-9b-eligible">Condicional</strong>
+                  <strong id="dash-model-9b-eligible">Verificando...</strong>
                   <span class="stat-box-hint">Exige folga de RAM</span>
                 </div>
                 <div class="stat-box">
@@ -444,9 +546,10 @@
               </div>
 
               <div class="panel-footer-actions">
-                <button type="button" class="btn btn-secondary btn-sm" data-goto-view="view-assistant">Abrir Assistente &amp; Cálculo ESG</button>
-                <button type="button" class="btn btn-ghost btn-sm" data-goto-view="view-audit">Configurar Modelo &amp; Auditoria</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-goto-view="view-assistant" aria-label="Abrir Assistente e C?lculo ESG">Abrir Assistente &amp; Cálculo ESG</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-goto-view="view-audit" aria-label="Configurar Modelo e Auditoria">Configurar Modelo &amp; Auditoria</button>
               </div>
+              </details>
             </article>
           </div>
 
@@ -860,14 +963,6 @@
               </div>
 
               <div class="form-row-3 compact-controls">
-                <div class="form-field">
-                  <label for="esg-period-start">Período Inicial</label>
-                  <input type="text" id="esg-period-start" value="2024-01" placeholder="YYYY-MM">
-                </div>
-                <div class="form-field">
-                  <label for="esg-period-end">Período Final</label>
-                  <input type="text" id="esg-period-end" value="2025-12" placeholder="YYYY-MM">
-                </div>
                 <div class="form-field">
                   <label for="esg-factor-source">Fonte Metodológica</label>
                   <select id="esg-factor-source">
@@ -1465,6 +1560,7 @@
           </article>
 
           <!-- Lista Detalhada de Laudos de Validação -->
+          <h2 class='sr-only'>Laudos de validação do projeto</h2>
           <div id="validations-list-container" class="validations-list" aria-live="polite">
             <article class="surface-panel">
               <p class="empty-state-text">Nenhuma validação registrada ainda. Execute uma análise financeira/ESG, preditiva ou simulação.</p>
@@ -1725,7 +1821,7 @@
         <section id="view-multiproject" class="view-section" aria-labelledby="heading-multiproject" hidden>
           <div class="view-header">
             <div>
-              <h2 id="heading-multiproject" class="view-title">Dashboard Corporativo Multiprojeto</h2>
+              <h1 id="heading-multiproject" class="view-title">Dashboard Corporativo Multiprojeto</h1>
               <p class="view-subtitle">Consolidação executiva de indicadores financeiros e ambientais (ESG), ranking de ecoeficiência e comparativo entre unidades corporativas.</p>
             </div>
             <div class="header-actions">
@@ -1773,7 +1869,7 @@
 
           <article class="card">
             <div class="card-header">
-              <h3 class="card-title">Ranking Corporativo de Ecoeficiência</h3>
+              <h2 class="card-title">Ranking Corporativo de Ecoeficiência</h2>
               <p class="card-subtitle">Classificação de projetos e filiais por intensidade de emissões de carbono e conformidade metodológica.</p>
             </div>
             <div class="table-responsive">
@@ -1806,8 +1902,8 @@
         <section id="view-scheduler" class="view-section" aria-labelledby="heading-scheduler" hidden>
           <div class="view-header">
             <div>
-              <h2 id="heading-scheduler" class="view-title">Automações &amp; Agendador Local</h2>
-              <p class="view-subtitle">Gerenciamento autônomo de rotinas periódicas de sincronização incremental de conectores e backups online assinados.</p>
+              <h1 id="heading-scheduler" class="view-title">Automa&ccedil;&otilde;es</h1>
+              <p class="view-subtitle">Gerencie rotinas programadas, sincroniza&ccedil;&otilde;es de conectores e backups do ambiente EcoBI.</p>
             </div>
             <div class="header-actions">
               <button type="button" id="btn-refresh-scheduler" class="btn btn-secondary">
@@ -1822,8 +1918,8 @@
           <div class="dashboard-grid">
             <article class="card">
               <div class="card-header">
-                <h3 class="card-title">Cadastrar Nova Rotina Agendada</h3>
-                <p class="card-subtitle">Configure jobs automáticos para sincronização de conectores ou backups consistentes do SQLite.</p>
+                <h2 class="card-title">Cadastrar Nova Rotina Agendada</h2>
+                <p class="card-subtitle">Defina o tipo de opera&ccedil;&atilde;o e a frequ&ecirc;ncia de execu&ccedil;&atilde;o.</p>
               </div>
               <form id="form-create-scheduled-job" class="form-grid">
                 <div class="form-group">
@@ -1857,7 +1953,7 @@
 
             <article class="card">
               <div class="card-header">
-                <h3 class="card-title">Rotinas Agendadas Ativas</h3>
+                <h2 class="card-title">Rotinas Agendadas Ativas</h2>
                 <p class="card-subtitle">Jobs operacionais gerenciados pelo serviço cooperativo em segundo plano.</p>
               </div>
               <div class="table-responsive">
@@ -1874,7 +1970,7 @@
                   </thead>
                   <tbody id="scheduler-jobs-table-body">
                     <tr>
-                      <td colspan="6" class="empty-cell">Nenhum job agendado cadastrado.</td>
+                      <td colspan="6" class="empty-cell"><div class="empty-state"><svg class="scheduler-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><strong>Nenhuma rotina ativa</strong><span>Crie uma rotina para automatizar sincronizações, auditorias ou backups.</span></div></td>
                     </tr>
                   </tbody>
                 </table>
@@ -1882,9 +1978,9 @@
             </article>
           </div>
 
-          <article class="card" style="margin-top: 1.5rem;">
+          <article class="card scheduler-history-card">
             <div class="card-header">
-              <h3 class="card-title">Histórico Recente de Execuções Automáticas</h3>
+              <h2 class="card-title">Histórico Recente de Execuções Automáticas</h2>
               <p class="card-subtitle">Registro auditável de sincronizações e backups processados pelo agendador local.</p>
             </div>
             <div class="table-responsive">
@@ -1901,7 +1997,7 @@
                 </thead>
                 <tbody id="scheduler-logs-table-body">
                   <tr>
-                    <td colspan="6" class="empty-cell">Nenhum log de execução registrado ainda.</td>
+                      <td colspan="6" class="empty-cell"><div class="empty-state"><svg class="scheduler-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"></path><path d="M3 3v5h5m4-1v5l3 2"></path></svg><strong>Nenhuma execução registrada</strong><span>O histórico será preenchido após a primeira rotina ser executada.</span></div></td>
                   </tr>
                 </tbody>
               </table>
@@ -1931,7 +2027,6 @@
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-      </div>
 
       <div class="modal-body">
         <p class="modal-intro">Identifique o operador responsável para rastreabilidade na trilha de auditoria local (<code>POST /api/auth/session</code>). Nenhum dado é transmitido para nuvem externa.</p>
@@ -1949,12 +2044,8 @@
             </div>
 
             <div class="form-field">
-              <label for="session-operator-role">Papel RBAC Local <span class="req-star" aria-hidden="true">*</span></label>
-              <select id="session-operator-role" name="role" required>
-                <option value="analyst">analyst (Analista ESG/Dados)</option>
-                <option value="admin">admin (Administrador &amp; LGPD)</option>
-                <option value="validator">validator (Validador / Auditor)</option>
-              </select>
+              <span class="form-label">Papel RBAC Local</span>
+              <p class="field-hint">analyst (Analista ESG/Dados). Papéis adicionais exigem provisionamento local.</p>
             </div>
           </div>
 

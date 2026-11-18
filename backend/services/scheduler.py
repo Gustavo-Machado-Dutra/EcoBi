@@ -20,7 +20,7 @@ import time
 from typing import Any, Dict, List, Optional, Set, Union
 
 from backend import config, database, security
-from backend.services import connectors
+from backend.services import connectors, data_quality
 
 logger = logging.getLogger("ecobi.scheduler")
 
@@ -311,12 +311,38 @@ async def execute_scheduled_job(
         elif job["job_type"] == "data_quality_audit":
             pid = job.get("project_id")
             datasets = database.list_datasets(project_id=pid) if pid else []
+            audited_datasets: List[Dict[str, Any]] = []
+            audit_errors: List[Dict[str, str]] = []
+            for dataset in datasets:
+                try:
+                    report = data_quality.profile_dataset_quality(
+                        project_id=dataset["project_id"],
+                        dataset_id=dataset["id"],
+                        actor=f"{triggered_by}:{job_id}",
+                    )
+                    audited_datasets.append(
+                        {
+                            "dataset_id": dataset["id"],
+                            "quality_report_id": report["id"],
+                        }
+                    )
+                except Exception as exc:
+                    audit_errors.append(
+                        {
+                            "dataset_id": dataset["id"],
+                            "error": security.mask_pii_text(str(exc)),
+                        }
+                    )
             summary_data = {
-                "datasets_audited_count": len(datasets),
+                "datasets_audited_count": len(audited_datasets),
+                "audited_datasets": audited_datasets,
+                "dataset_errors": audit_errors,
                 "audited_at": datetime.now(timezone.utc).isoformat(),
             }
-            records_processed = len(datasets)
-            status_result = "SUCCESS"
+            records_processed = len(audited_datasets)
+            status_result = "FAILED" if audit_errors else "SUCCESS"
+            if audit_errors:
+                error_msg = f"Falha no perfilamento de {len(audit_errors)} dataset(s)."
 
         else:
             raise ValueError(f"job_type desconhecido: {job['job_type']}")

@@ -63,6 +63,17 @@ def test_auth_session_lgpd_consent_and_401(client: TestClient) -> None:
     assert data["lgpd_consent"] is True
     assert data["role"] == "analyst"
 
+    resp_privileged_role = client.post(
+        "/api/auth/session",
+        json={
+            "operator_name": "Unprovisioned Operator",
+            "operator_email": "unprovisioned@ecobi.local",
+            "lgpd_consent": True,
+            "role": "admin",
+        },
+    )
+    assert resp_privileged_role.status_code == 422
+
     # 4. Token emitido valida com sucesso em GET /api/auth/session e rotas protegidas
     headers = {"Authorization": f"Bearer {token}"}
     resp_verify = client.get("/api/auth/session", headers=headers)
@@ -213,7 +224,7 @@ def test_pii_masking_and_lgpd_cascade_purge(client: TestClient, auth_headers: Di
     assert security.verify_external_url_allowed("https://generativelanguage.googleapis.com") is False
     # Localhost é rigorosamente permitido
     assert security.verify_external_url_allowed("http://127.0.0.1:11434") is True
-    assert security.verify_external_url_allowed("http://localhost:11434") is True
+    assert security.verify_external_url_allowed("http://localhost:11434") is False
 
     # 4. Expurgo em Cascata LGPD (POST /api/system/lgpd-purge)
     # Cria projeto de teste com prazo de retenção expirado (ou simulando override=0)

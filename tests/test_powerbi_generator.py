@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict
 import zipfile
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -214,3 +215,64 @@ def test_pbip_pbir_generation_and_reconciliation(
         assert any("model.bim" in f for f in namelist)
         assert any("report.json" in f for f in namelist)
         assert any("EcoBITheme.json" in f for f in namelist)
+
+
+def test_pbip_deduplicates_repeated_financial_periods(
+    client: TestClient,
+    auth_headers: Dict[str, str],
+    sample_paths: Dict[str, Path],
+    tmp_path: Path,
+) -> None:
+    project_response = client.post(
+        "/api/projects",
+        json={"name": "EcoBI Repeated Periods", "sector": "Varejo", "currency": "BRL"},
+        headers=auth_headers,
+    )
+    project_id = project_response.json()["id"]
+
+    sample_data = pd.read_csv(sample_paths["piloto"])
+    sample_data = pd.concat([sample_data, sample_data.iloc[[0]]], ignore_index=True)
+    repeated_period_sample = tmp_path / "piloto_repeated_period.csv"
+    sample_data.to_csv(repeated_period_sample, index=False)
+
+    with open(repeated_period_sample, "rb") as sample_file:
+        upload_response = client.post(
+            f"/api/projects/{project_id}/datasets/upload",
+            files={"file": ("piloto_repeated_periods.csv", sample_file, "text/csv")},
+            headers=auth_headers,
+        )
+    dataset_id = upload_response.json()["dataset"]["id"]
+
+    analysis_ids = []
+    analysis_result = None
+    for _ in range(6):
+        analysis_result = analytics.run_financial_esg_analysis(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            actor="qa_tester",
+        )
+        analysis_id = analysis_result["analysis_id"]
+        validation = validation_engine.validate_analysis(project_id, analysis_id, actor="qa_auditor")
+        assert validation["status"] == "APROVADO"
+        analysis_ids.append(analysis_id)
+
+    generated = powerbi_generator.generate_pbip_project(
+        project_id=project_id,
+        analysis_ids=analysis_ids,
+        report_title="Periods",
+        actor="qa_tester",
+    )
+    fact_path = Path(generated["bundle_path"]) / "data" / "FactOperacoesMensais.csv"
+    fact_rows = pd.read_csv(fact_path)
+
+    assert len(fact_rows) == len(analysis_result["monthly_series"])
+    assert fact_rows["Periodo"].duplicated().sum() == 1
+    assert fact_rows["ReceitaBruta"].sum() == pytest.approx(
+        analysis_result["financial_kpis"]["receita_bruta_total"], abs=0.01
+    )
+    assert fact_rows["TotalGrossEmissionsCO2eTons"].sum() == pytest.approx(
+        analysis_result["esg_kpis"]["total_gross_emissions_co2e_tons"], abs=0.0001
+    )
+    assert generated["reconciliation"]["receita_bruta_total"] == pytest.approx(
+        analysis_result["financial_kpis"]["receita_bruta_total"], abs=0.01
+    )

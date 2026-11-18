@@ -15,9 +15,10 @@ import re
 import secrets
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 import pandas as pd
+import psutil
 
 from backend import config
 from backend import database
@@ -256,38 +257,116 @@ def safe_resolve_path(base_dir: Path, untrusted_name: str) -> Path:
 # Bloqueio de Saída Externa de IA (Garantia Local-First)
 # ============================================================================
 
-ALLOWED_LOOPBACK_HOSTS = {
-    "localhost",
-    "127.0.0.1",
-    "::1",
-    "0.0.0.0",
-    "testserver",
-    "localhost.localdomain",
-}
+ALLOWED_LOOPBACK_HOSTS = {"127.0.0.1"}
+
+
+def assert_loopback_process_listeners() -> None:
+    try:
+        listeners = [
+            connection.laddr.ip
+            for connection in psutil.Process().net_connections(kind="inet")
+            if connection.status == psutil.CONN_LISTEN
+        ]
+    except psutil.Error as exc:
+        raise RuntimeError("Unable to verify EcoBI listening interfaces; refusing startup.") from exc
+    if any(address != "127.0.0.1" for address in listeners):
+        raise RuntimeError("EcoBI may listen only on 127.0.0.1.")
 
 
 def verify_external_url_allowed(url: str) -> bool:
-    """Verifica se uma URL de IA é permitida.
-
-    Quando BLOCK_EXTERNAL_AI for True, bloqueia terminantemente qualquer
-    conexão fora do loopback local (127.0.0.1 / localhost).
-    """
+    """Allow only the configured local Ollama endpoint, never DNS hostnames."""
     if not config.BLOCK_EXTERNAL_AI:
-        return True
-
+        return False
     try:
-        parsed = urlparse(url)
-        host = (parsed.hostname or "").lower()
-        if host in ALLOWED_LOOPBACK_HOSTS:
-            return True
-        logger.warning(
-            "Tentativa de conexão externa bloqueada pela política de soberania de dados: %s",
-            url,
+        parsed = urlsplit(url)
+        return (
+            parsed.scheme == "http"
+            and parsed.hostname == "127.0.0.1"
+            and parsed.port == 11434
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.path in ("", "/")
+            and parsed.query == ""
+            and parsed.fragment == ""
         )
+    except (TypeError, ValueError):
         return False
-    except Exception as e:
-        logger.error("Falha ao analisar URL de saída externa: %s", e)
+
+
+def is_allowed_local_authority(authority: str, server) -> bool:
+    if not authority or not server or "," in authority or "@" in authority:
         return False
+    try:
+        parsed = urlsplit(f"//{authority}")
+        server_host, server_port = server
+        if parsed.hostname not in {"127.0.0.1", "localhost"}:
+            return False
+        if server_host != "127.0.0.1" or not isinstance(server_port, int):
+            return False
+        return parsed.port is None or parsed.port == server_port
+    except (TypeError, ValueError):
+        return False
+
+
+def is_allowed_local_origin(origin: str, server, scheme: str) -> bool:
+    if not origin or origin == "null" or not server:
+        return False
+    try:
+        parsed = urlsplit(origin)
+        server_host, server_port = server
+        expected_origin_scheme = {"http": "http", "ws": "http", "https": "https", "wss": "https"}.get(scheme)
+        return (
+            server_host == "127.0.0.1"
+            and expected_origin_scheme is not None
+            and parsed.scheme == expected_origin_scheme
+            and parsed.hostname in {"127.0.0.1", "localhost"}
+            and parsed.port == server_port
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.path == ""
+            and parsed.query == ""
+            and parsed.fragment == ""
+        )
+    except (TypeError, ValueError):
+        return False
+
+
+class LocalRequestSecurityMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        scope_type = scope.get("type")
+        if scope_type not in {"http", "websocket"}:
+            await self.app(scope, receive, send)
+            return
+        headers = {key.decode("latin-1").lower(): value.decode("latin-1") for key, value in scope.get("headers", [])}
+        server = scope.get("server")
+        if not is_allowed_local_authority(headers.get("host", ""), server):
+            await self._reject(scope, receive, send, "Local Host not authorized.")
+            return
+        origin = headers.get("origin")
+        if origin is not None and not is_allowed_local_origin(origin, server, scope.get("scheme", "")):
+            await self._reject(scope, receive, send, "Origin not authorized for this local installation.")
+            return
+        fetch_site = headers.get("sec-fetch-site", "").lower()
+        if fetch_site and fetch_site not in {"same-origin", "none"}:
+            await self._reject(scope, receive, send, "Cross-origin request not authorized.")
+            return
+        method = scope.get("method", "").upper()
+        if (scope_type == "websocket" or method in {"POST", "PUT", "PATCH", "DELETE"}) and origin is None:
+            await self._reject(scope, receive, send, "A local Origin is required for this operation.")
+            return
+        await self.app(scope, receive, send)
+
+    @staticmethod
+    async def _reject(scope, receive, send, detail):
+        if scope.get("type") == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        from starlette.responses import JSONResponse
+        response = JSONResponse(status_code=403, content={"detail": detail})
+        await response(scope, receive, send)
 
 
 # ============================================================================

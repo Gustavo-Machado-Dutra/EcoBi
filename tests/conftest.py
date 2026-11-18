@@ -121,5 +121,5 @@ def viewer_headers(viewer_session: Dict[str, Any]) -> Dict[str, str]:
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     """Instancia o cliente de testes da aplicação FastAPI com contexto completo."""
-    with TestClient(main.app) as c:
+    with TestClient(main.app, base_url="http://127.0.0.1:8000", headers={"Origin": "http://127.0.0.1:8000"}) as c:
         yield c

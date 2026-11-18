@@ -16,6 +16,8 @@
     OPERATOR_ROLE: "ecobi_operator_role",
     ACTIVE_PROJECT_ID: "ecobi_active_project_id",
     ACTIVE_DATASET_ID: "ecobi_active_dataset_id",
+    THEME: "ecobi_theme_preference",
+    SIDEBAR_COLLAPSED: "ecobi_sidebar_collapsed",
   };
 
   const CANONICAL_COLUMNS_SPEC = {
@@ -73,6 +75,7 @@
     modelSettings: null,
     chatHistory: [],
   };
+  let projectContextSequence = 0;
 
   // ==========================================================================
   // 2. UTILITÁRIOS DE FORMATAÇÃO E ESCAPE SEGURO (PREVENÇÃO XSS)
@@ -245,6 +248,7 @@
     const modal = document.getElementById("modal-session");
     if (!modal) return;
     modal.hidden = true;
+    document.getElementById("btn-open-session-modal")?.focus();
   }
 
   async function createSessionRequest(operatorName, operatorEmail, role, lgpdConsent) {
@@ -319,6 +323,11 @@
   // ==========================================================================
   // 5. NAVEGAÇÃO ENTRE AS 10 TELAS PRIORITÁRIAS
   // ==========================================================================
+  function updateTopbarPageTitle(viewId = state.currentView) {
+    const title = document.getElementById("topbar-page-title");
+    const heading = document.getElementById(viewId)?.querySelector("h1");
+    if (title && heading) title.textContent = heading.textContent.trim();
+  }
   function switchView(viewId) {
     const sections = document.querySelectorAll(".view-section");
     sections.forEach((sec) => {
@@ -343,13 +352,18 @@
     });
 
     state.currentView = viewId;
+    updateTopbarPageTitle(viewId);
+    updateWorkflowStates();
 
     // Fecha sidebar mobile se aberta
     const sidebar = document.getElementById("app-sidebar");
     const openBtn = document.getElementById("btn-open-sidebar");
     if (sidebar && sidebar.classList.contains("is-open")) {
       sidebar.classList.remove("is-open");
-      if (openBtn) openBtn.setAttribute("aria-expanded", "false");
+      if (openBtn) {
+        openBtn.setAttribute("aria-expanded", "false");
+        openBtn.setAttribute("aria-label", "Abrir menu lateral");
+      }
     }
 
     // Dispara carregamento específico da view selecionada
@@ -393,21 +407,28 @@
 
   function renderMemoryTelemetry(mem) {
     if (!mem) return;
-    const usedMb = Number(mem.ecobi_ram_used_mb ?? mem.memory_used_mb ?? 180);
-    const budgetMb = Number(mem.ecobi_ram_budget_mb ?? mem.memory_budget_mb ?? 8192);
-    const pct = Math.min(100, Math.max(0, Number(mem.ecobi_ram_usage_percentage ?? ((usedMb / budgetMb) * 100))));
-    const hostTotal = Number(mem.host_total_ram_mb ?? 16384);
-    const hostAvail = Number(mem.host_available_ram_mb ?? 8192);
-    const alertLevel = String(mem.memory_alert_level || "NORMAL").toUpperCase();
-    const canHeavy = mem.can_run_heavy_analysis !== false;
+    const usedValue = mem.ecobi_ram_used_mb ?? mem.memory_used_mb;
+    const budgetValue = mem.ecobi_ram_budget_mb ?? mem.memory_budget_mb;
+    const usedMb = usedValue === null || usedValue === undefined ? NaN : Number(usedValue);
+    const budgetMb = budgetValue === null || budgetValue === undefined ? NaN : Number(budgetValue);
+    const reportedPct = mem.ecobi_ram_usage_percentage;
+    const pct = reportedPct !== null && reportedPct !== undefined && Number.isFinite(Number(reportedPct))
+      ? Math.min(100, Math.max(0, Number(reportedPct)))
+      : Number.isFinite(usedMb) && Number.isFinite(budgetMb) && budgetMb > 0
+        ? Math.min(100, Math.max(0, (usedMb / budgetMb) * 100))
+        : NaN;
+    const hostTotal = mem.host_total_ram_mb === null || mem.host_total_ram_mb === undefined ? NaN : Number(mem.host_total_ram_mb);
+    const hostAvail = mem.host_available_ram_mb === null || mem.host_available_ram_mb === undefined ? NaN : Number(mem.host_available_ram_mb);
+    const alertLevel = String(mem.memory_alert_level || "UNKNOWN").toUpperCase();
+    const canHeavy = mem.can_run_heavy_analysis;
 
     // Topbar
     const topText = document.getElementById("topbar-ram-text");
     const topBar = document.getElementById("topbar-ram-bar");
-    if (topText) topText.textContent = `${Math.round(usedMb)} / ${Math.round(budgetMb)} MB`;
+    if (topText) topText.textContent = Number.isFinite(usedMb) && Number.isFinite(budgetMb) ? `${Math.round(usedMb)} / ${Math.round(budgetMb)} MB` : "— / — MB";
     if (topBar) {
-      topBar.style.width = `${Math.max(4, pct)}%`;
-      topBar.style.backgroundColor = alertLevel === "CRITICAL" ? "#C8784A" : "#4F7A59";
+      topBar.style.width = Number.isFinite(pct) ? `${Math.max(4, pct)}%` : "0%";
+      topBar.style.backgroundColor = alertLevel === "CRITICAL" ? "var(--warning)" : "var(--forest-600)";
     }
 
     // Dashboard Gauge SVG (Arc length = 267)
@@ -416,12 +437,12 @@
     const mbText = document.getElementById("dash-ram-gauge-mb");
     if (arc) {
       const maxArc = 267;
-      const offset = maxArc - (maxArc * Math.min(100, pct)) / 100;
+      const offset = Number.isFinite(pct) ? maxArc - (maxArc * Math.min(100, pct)) / 100 : maxArc;
       arc.setAttribute("stroke-dashoffset", String(offset.toFixed(1)));
-      arc.setAttribute("stroke", alertLevel === "CRITICAL" ? "#C8784A" : "#4F7A59");
+      arc.setAttribute("stroke", alertLevel === "CRITICAL" ? "var(--warning)" : "var(--forest-600)");
     }
-    if (pctText) pctText.textContent = `${pct.toFixed(1)}%`;
-    if (mbText) mbText.textContent = `${formatNumber(usedMb, 1)} / ${Math.round(budgetMb)} MB`;
+    if (pctText) pctText.textContent = Number.isFinite(pct) ? `${pct.toFixed(1)}%` : "—%";
+    if (mbText) mbText.textContent = `${formatNumber(usedMb, 1)} / ${formatNumber(budgetMb, 0)} MB`;
 
     const usedDetail = document.getElementById("dash-ram-used-detail");
     const budgetDetail = document.getElementById("dash-ram-budget-detail");
@@ -432,10 +453,10 @@
     if (usedDetail) usedDetail.textContent = `${formatNumber(usedMb, 1)} MB`;
     if (budgetDetail) budgetDetail.textContent = `${Math.round(budgetMb)} MB (8,0 GB)`;
     if (hostDetail) hostDetail.textContent = `${formatNumber(hostAvail, 0)} MB livres de ${formatNumber(hostTotal, 0)} MB`;
-    if (headroomDetail) headroomDetail.textContent = canHeavy ? "Liberado (Dentro do Orçamento)" : "Restrito (Alta Ocupação)";
+    if (headroomDetail) headroomDetail.textContent = canHeavy === true ? "Liberado (dentro do orçamento)" : canHeavy === false ? "Restrito (alta ocupação)" : "Não avaliado";
     if (alertBadge) {
       alertBadge.textContent = alertLevel;
-      alertBadge.className = `badge ${alertLevel === "NORMAL" ? "badge-approved" : alertLevel === "WARNING" ? "badge-warning" : "badge-rejected"}`;
+      alertBadge.className = `badge ${alertLevel === "NORMAL" ? "badge-approved" : alertLevel === "WARNING" ? "badge-warning" : alertLevel === "CRITICAL" ? "badge-rejected" : "badge-neutral"}`;
     }
 
     // View Audit (Tela 10)
@@ -522,9 +543,10 @@
           await setActiveProject(list[0].id, false);
         } else {
           syncProjectSelectors();
+          await loadProjectContextData(state.activeProjectId);
         }
       } else {
-        state.activeProjectId = "";
+        await setActiveProject("", false);
         syncProjectSelectors();
       }
 
@@ -543,6 +565,8 @@
     const stepProj = document.getElementById("step-status-projects");
 
     const activeProj = state.projects.find((p) => p.id === state.activeProjectId) || null;
+    const executiveProject = document.getElementById("dash-active-project");
+    if (executiveProject) executiveProject.textContent = activeProj ? activeProj.name : "Selecione um projeto";
 
     if (globalSelect) {
       if (state.projects.length === 0) {
@@ -557,6 +581,7 @@
           )
           .join("");
       }
+      globalSelect.title = activeProj ? `${activeProj.name} (${activeProj.sector})` : "Nenhum projeto selecionado";
     }
 
     if (sideName) {
@@ -571,12 +596,17 @@
   }
 
   async function setActiveProject(projectId, notify = true) {
-    state.activeProjectId = projectId || "";
+    const nextProjectId = projectId || "";
+    if (state.activeProjectId !== nextProjectId || !nextProjectId) resetProjectViewState();
+    state.activeProjectId = nextProjectId;
     localStorage.setItem(STORAGE_KEYS.ACTIVE_PROJECT_ID, state.activeProjectId);
     syncProjectSelectors();
     renderProjectsGrid();
 
-    if (!state.activeProjectId) return;
+    if (!state.activeProjectId) {
+      syncDatasetSelector();
+      return;
+    }
 
     await loadProjectContextData(state.activeProjectId);
     if (notify) {
@@ -585,15 +615,39 @@
     }
   }
 
+  function resetProjectViewState() {
+    state.activeDatasetId = "";
+    state.datasets = [];
+    state.sampleData = null;
+    state.qualityReport = null;
+    state.columnMappings = {};
+    state.financialEsgAnalysis = null;
+    state.predictiveAnalysis = null;
+    state.simulationResult = null;
+    state.analyses = [];
+    state.validations = [];
+    state.powerbiReports = [];
+    state.latestPowerbiResult = null;
+    state.auditLogs = [];
+    state.chatHistory = [];
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_DATASET_ID, "");
+    syncDatasetSelector();
+    updateDashboardKPIs();
+  }
+
   async function loadProjectContextData(projectId) {
     if (!projectId) return;
+    const sequence = ++projectContextSequence;
+    const isCurrentContext = () => sequence === projectContextSequence && projectId === state.activeProjectId;
     // Busca detalhes/datasets/validações/relatórios/auditoria do projeto
     try {
       const projDetail = await apiRequest(`/api/projects/${encodeURIComponent(projectId)}`).catch(() => null);
+      if (!isCurrentContext()) return;
       if (projDetail && Array.isArray(projDetail.datasets)) {
         state.datasets = projDetail.datasets;
       } else {
         const dsRes = await apiRequest(`/api/projects/${encodeURIComponent(projectId)}/datasets`).catch(() => null);
+        if (!isCurrentContext()) return;
         if (dsRes) {
           state.datasets = Array.isArray(dsRes) ? dsRes : dsRes.datasets || [];
         }
@@ -613,6 +667,8 @@
         state.activeDatasetId = "";
       }
 
+      syncDashboardAnalysis();
+
       syncDatasetSelector();
       renderDatasetsTable();
 
@@ -622,6 +678,7 @@
           loadQualityReport(state.activeDatasetId, true),
         ]);
       }
+      if (!isCurrentContext()) return;
 
       await Promise.all([
         loadValidations(true),
@@ -629,6 +686,7 @@
         loadAuditLogs(true),
       ]);
 
+      if (!isCurrentContext()) return;
       updateDashboardKPIs();
     } catch (_) {
       // Silencioso no bootstrap inicial
@@ -713,10 +771,25 @@
   // ==========================================================================
   // 8. TELA 3: IMPORTAÇÃO DE DADOS (UPLOAD, SAMPLES & PRÉVIA COM PII MASCARADO)
   // ==========================================================================
+  function syncDashboardAnalysis() {
+    const latestAnalysis = state.analyses.find((analysis) =>
+      analysis.analysis_type === "financial_esg" &&
+      analysis.dataset_id === state.activeDatasetId &&
+      analysis.status === "COMPLETED"
+    );
+    const result = safeJsonParse(latestAnalysis?.result_json, null);
+    state.financialEsgAnalysis = result && Object.keys(result).length
+      ? { ...result, analysis_id: latestAnalysis.id, dataset_id: latestAnalysis.dataset_id }
+      : null;
+  }
+
   function syncDatasetSelector() {
     const select = document.getElementById("global-dataset-select");
     const sideBadge = document.getElementById("sidebar-dataset-badge");
     const stepImport = document.getElementById("step-status-import");
+    const executiveDataset = document.getElementById("dash-active-dataset");
+    const activeDataset = state.datasets.find((dataset) => (dataset.id || dataset.dataset_id) === state.activeDatasetId);
+    if (executiveDataset) executiveDataset.textContent = activeDataset ? (activeDataset.filename || activeDataset.name) : "Nenhum dataset selecionado";
 
     if (select) {
       if (state.datasets.length === 0) {
@@ -732,6 +805,7 @@
           })
           .join("");
       }
+      select.title = activeDataset ? `${activeDataset.filename || activeDataset.name} (${activeDataset.row_count ?? activeDataset.total_rows ?? 0} linhas)` : "Nenhum dataset selecionado";
     }
 
     const activeDs = state.datasets.find((d) => (d.id || d.dataset_id) === state.activeDatasetId);
@@ -889,12 +963,14 @@
 
   async function loadDatasetSample(datasetId, silent = false) {
     if (!state.activeProjectId || !datasetId) return;
+    const projectId = state.activeProjectId;
     try {
       const res = await apiRequest(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/datasets/sample?dataset_id=${encodeURIComponent(
+        `/api/projects/${encodeURIComponent(projectId)}/datasets/sample?dataset_id=${encodeURIComponent(
           datasetId
         )}&limit=50`
       );
+      if (projectId !== state.activeProjectId || datasetId !== state.activeDatasetId) return;
       state.sampleData = res;
       renderSamplePreview(res);
     } catch (err) {
@@ -979,11 +1055,13 @@
     if (!state.activeProjectId) return;
     const dsId = datasetId || state.activeDatasetId;
     if (!dsId) return;
+    const projectId = state.activeProjectId;
 
     try {
       const res = await apiRequest(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/quality?dataset_id=${encodeURIComponent(dsId)}`
+        `/api/projects/${encodeURIComponent(projectId)}/quality?dataset_id=${encodeURIComponent(dsId)}`
       );
+      if (projectId !== state.activeProjectId || dsId !== state.activeDatasetId) return;
       state.qualityReport = res;
       renderQualityView(res);
       updateDashboardKPIs();
@@ -1190,6 +1268,10 @@
       );
 
       state.financialEsgAnalysis = res;
+      const persistedAnalyses = await apiRequest(`/api/projects/${encodeURIComponent(projectId)}/analyses`).catch(() => null);
+      if (persistedAnalyses && Array.isArray(persistedAnalyses.analyses)) {
+        state.analyses = persistedAnalyses.analyses;
+      }
       renderFinancialEsgResults(res);
       updateDashboardKPIs();
       await loadValidations(true);
@@ -1919,10 +2001,12 @@
   // ==========================================================================
   async function loadValidations(silent = false) {
     if (!state.activeProjectId) return;
+    const projectId = state.activeProjectId;
     try {
       const res = await apiRequest(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/validations`
+        `/api/projects/${encodeURIComponent(projectId)}/validations`
       );
+      if (projectId !== state.activeProjectId) return;
       const list = Array.isArray(res) ? res : res.validations || (res.validation_id || res.id ? [res] : []);
       state.validations = list;
       renderValidationsView(list);
@@ -2232,10 +2316,12 @@
 
   async function loadPowerbiReportsList(silent = false) {
     if (!state.activeProjectId) return;
+    const projectId = state.activeProjectId;
     try {
       const res = await apiRequest(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/powerbi/reports`
+        `/api/projects/${encodeURIComponent(projectId)}/powerbi/reports`
       );
+      if (projectId !== state.activeProjectId) return;
       const list = Array.isArray(res) ? res : res.reports || [];
       state.powerbiReports = list;
       renderPowerbiReportsTable(list);
@@ -2293,10 +2379,12 @@
 
   async function loadAuditLogs(silent = false) {
     if (!state.activeProjectId) return;
+    const projectId = state.activeProjectId;
     try {
       const res = await apiRequest(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/audit?limit=100`
+        `/api/projects/${encodeURIComponent(projectId)}/audit?limit=100`
       );
+      if (projectId !== state.activeProjectId) return;
       const list = Array.isArray(res) ? res : res.logs || res.audit_logs || [];
       state.auditLogs = list;
       renderAuditLogsTable();
@@ -2356,55 +2444,454 @@
     const qual = state.qualityReport || {};
     const qualSummary = safeJsonParse(qual.summary_json || qual.summary, {}) || {};
 
-    const revEl = document.getElementById("dash-kpi-revenue");
-    const revSub = document.getElementById("dash-kpi-revenue-sub");
-    const margEl = document.getElementById("dash-kpi-margin");
-    const costSub = document.getElementById("dash-kpi-cost-sub");
-    const emissEl = document.getElementById("dash-kpi-emissions");
-    const credSub = document.getElementById("dash-kpi-credits-sub");
-    const qualEl = document.getElementById("dash-kpi-quality");
-    const valSub = document.getElementById("dash-kpi-validations-sub");
-
-    const grossRev = Number(fin.receita_bruta_total ?? fin.total_revenue ?? NaN);
-    const netRev = Number(fin.receita_liquida_total ?? NaN);
+    const grossRevenue = Number(fin.receita_bruta_total ?? fin.total_revenue ?? NaN);
+    const netRevenue = Number(fin.receita_liquida_total ?? NaN);
     const marginPct = Number(fin.margem_liquida_pct ?? fin.gross_margin_percentage ?? NaN);
     const totalCost = Number(fin.custo_total ?? fin.total_cost ?? NaN);
-    const totalEmiss = Number(esg.total_gross_emissions_co2e_tons ?? esg.total_emissions_co2e_tons ?? NaN);
+    const grossEmissions = Number(esg.total_gross_emissions_co2e_tons ?? esg.total_emissions_co2e_tons ?? NaN);
     const credits = Number(esg.carbon_credits_acquired_tco2e ?? NaN);
-    const qScore = Number(qual.overall_quality_score ?? qualSummary.overall_quality_score ?? qual.completeness_pct ?? NaN);
+    const qualityScore = Number(qual.overall_quality_score ?? qualSummary.overall_quality_score ?? qual.completeness_pct ?? NaN);
 
-    if (revEl && Number.isFinite(grossRev)) {
-      revEl.textContent = formatCurrency(grossRev);
+    const revenueElement = document.getElementById("dash-kpi-revenue");
+    const netRevenueElement = document.getElementById("dash-kpi-net-revenue");
+    const revenueSubElement = document.getElementById("dash-kpi-revenue-sub");
+    const marginElement = document.getElementById("dash-kpi-margin");
+    const costSubElement = document.getElementById("dash-kpi-cost-sub");
+    const emissionsElement = document.getElementById("dash-kpi-emissions");
+    const creditsSubElement = document.getElementById("dash-kpi-credits-sub");
+    const qualityElement = document.getElementById("dash-kpi-quality");
+    const validationSubElement = document.getElementById("dash-kpi-validations-sub");
+
+    if (revenueElement) revenueElement.textContent = Number.isFinite(grossRevenue) ? formatCurrency(grossRevenue) : "R$ —";
+    if (netRevenueElement) netRevenueElement.textContent = Number.isFinite(netRevenue) ? formatCurrency(netRevenue) : "R$ —";
+    if (revenueSubElement) revenueSubElement.textContent = Number.isFinite(netRevenue) ? `Margem líquida: ${Number.isFinite(marginPct) ? `${formatNumber(marginPct, 1)}%` : "—%"}` : "Disponível após análise financeira";
+    if (marginElement) marginElement.textContent = Number.isFinite(marginPct) ? `${formatNumber(marginPct, 1)}%` : "—%";
+    if (costSubElement) costSubElement.textContent = Number.isFinite(totalCost) ? `Custos totais: ${formatCurrency(totalCost)}` : "Custos indisponíveis";
+    if (emissionsElement) emissionsElement.textContent = Number.isFinite(grossEmissions) ? `${formatNumber(grossEmissions, 2)} tCO2e` : "— tCO2e";
+    if (creditsSubElement) creditsSubElement.textContent = Number.isFinite(credits) ? `Créditos separados (não abatidos): ${formatNumber(credits, 2)} tCO2e` : "Créditos separados (não abatidos): — tCO2e";
+    if (qualityElement) qualityElement.textContent = Number.isFinite(qualityScore) ? `${formatNumber(qualityScore, 1)}%` : "—%";
+    if (validationSubElement) {
+      const approvedCount = state.validations.filter((validation) => validation.status !== "REJEITADO").length;
+      const rejectedCount = state.validations.filter((validation) => validation.status === "REJEITADO").length;
+      validationSubElement.textContent = `Aprovadas: ${approvedCount} | Rejeitadas: ${rejectedCount}`;
     }
-    if (revSub && Number.isFinite(netRev)) {
-      revSub.textContent = `Receita Líquida: ${formatCurrency(netRev)}`;
+
+    updateDashboardQuality(qual, qualSummary, qualityScore);
+    updateDashboardCharts(fin, esg, state.financialEsgAnalysis?.monthly_series);
+    updateDashboardOperations(qual, qualSummary);
+    updateWorkflowStates();
+  }
+
+  function updateDashboardQuality(report, summary, qualityScore) {
+    const scoreElement = document.getElementById("dash-quality-score");
+    const progressElement = document.getElementById("dash-quality-progress");
+    const rowsElement = document.getElementById("dash-quality-rows");
+    const alertsElement = document.getElementById("dash-quality-alerts");
+    const hasReport = Boolean(state.qualityReport);
+    const totalRows = Number(report.total_rows ?? summary.total_rows ?? NaN);
+    const inconsistencyCount = Number(report.inconsistency_count ?? (Array.isArray(summary.inconsistencies) ? summary.inconsistencies.length : NaN));
+
+    if (scoreElement) scoreElement.textContent = Number.isFinite(qualityScore) ? `${formatNumber(qualityScore, 1)}%` : "—%";
+    if (rowsElement) rowsElement.textContent = Number.isFinite(totalRows) ? new Intl.NumberFormat("pt-BR").format(totalRows) : "—";
+    if (alertsElement) alertsElement.textContent = Number.isFinite(inconsistencyCount) ? new Intl.NumberFormat("pt-BR").format(inconsistencyCount) : "—";
+    if (progressElement) {
+      const available = hasReport && Number.isFinite(qualityScore);
+      progressElement.hidden = !available;
+      if ("value" in progressElement) progressElement.value = available ? Math.max(0, Math.min(100, qualityScore)) : 0;
+      if (available) {
+        progressElement.setAttribute("aria-valuenow", String(Math.max(0, Math.min(100, qualityScore))));
+        progressElement.setAttribute("aria-valuetext", `${formatNumber(qualityScore, 1)}% de qualidade dos dados`);
+      } else {
+        progressElement.removeAttribute("aria-valuenow");
+        progressElement.setAttribute("aria-valuetext", "Indicador indisponível até o perfilamento dos dados");
+      }
     }
-    if (margEl && Number.isFinite(marginPct)) {
-      margEl.textContent = `${formatNumber(marginPct, 1)}%`;
+  }
+
+  function updateDashboardFinanceChart(monthlySeries) {
+    const container = document.getElementById("dash-finance-chart");
+    if (!container) return;
+
+    const validPeriods = Array.isArray(monthlySeries)
+      ? monthlySeries.filter((item) => /^\d{4}-(?:0[1-9]|1[0-2])$/.test(String(item.periodo || "")))
+      : [];
+    const series = validPeriods
+      .map((item) => ({
+        period: String(item.periodo),
+        revenue: Number(item.receita_liquida),
+        cost: Number(item.custo_total),
+        margin: Number(item.margem_liquida_pct),
+      }))
+      .filter((item) => Number.isFinite(item.revenue) && Number.isFinite(item.cost))
+      .sort((first, second) => first.period.localeCompare(second.period));
+
+    if (series.length < 2 || new Set(series.map((item) => item.period)).size < 2) {
+      container.innerHTML = '<p class="empty-state-text">A evolução financeira aparece após uma análise com pelo menos dois períodos reais.</p>';
+      container.setAttribute("aria-label", "Série temporal financeira indisponível");
+      return;
     }
-    if (costSub && Number.isFinite(totalCost)) {
-      costSub.textContent = `Custos totais: ${formatCurrency(totalCost)}`;
+
+    const width = 640;
+    const height = 248;
+    const left = 68;
+    const right = 590;
+    const top = 22;
+    const bottom = 176;
+    const plotWidth = right - left;
+    const plotHeight = bottom - top;
+    const moneyMaximum = Math.max(...series.flatMap((item) => [Math.abs(item.revenue), Math.abs(item.cost)]), 1);
+    const margins = series.map((item) => item.margin).filter(Number.isFinite);
+    const marginMinimum = margins.length ? Math.min(...margins, 0) : 0;
+    const marginMaximum = margins.length ? Math.max(...margins, 100) : 100;
+    const marginRange = marginMaximum - marginMinimum || 1;
+    const xFor = (index) => left + (index / (series.length - 1)) * plotWidth;
+    const moneyY = (value) => bottom - ((value / moneyMaximum) * plotHeight);
+    const marginY = (value) => bottom - (((value - marginMinimum) / marginRange) * plotHeight);
+    const pathFor = (property, yFor) => series.map((item, index) => `${index ? "L" : "M"}${xFor(index).toFixed(1)},${yFor(item[property]).toFixed(1)}`).join(" ");
+    const compactCurrency = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(value);
+    const grid = [0, 0.5, 1].map((ratio) => {
+      const y = bottom - ratio * plotHeight;
+      return `<line class="chart-grid-line" x1="${left}" y1="${y}" x2="${right}" y2="${y}"></line><text class="chart-axis-label" x="${left - 8}" y="${y + 4}" text-anchor="end">${escapeHtml(compactCurrency(ratio * moneyMaximum))}</text>`;
+    }).join("");
+    const labelIndexes = Array.from(new Set([0, Math.floor((series.length - 1) / 2), series.length - 1]));
+    const periodLabels = labelIndexes.map((index) => `<text class="chart-axis-label" x="${xFor(index)}" y="${bottom + 24}" text-anchor="middle">${escapeHtml(series[index].period)}</text>`).join("");
+    const marginPath = margins.length === series.length
+      ? `<path class="finance-series-line finance-series-margin" d="${pathFor("margin", marginY)}"></path><text class="chart-axis-label chart-axis-label-secondary" x="${right + 8}" y="${top + 4}">${formatNumber(marginMaximum, 0)}%</text><text class="chart-axis-label chart-axis-label-secondary" x="${right + 8}" y="${bottom}">${formatNumber(marginMinimum, 0)}%</text>`
+      : "";
+
+    container.innerHTML = `
+      <svg class="finance-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="dash-finance-svg-title dash-finance-svg-description">
+        <title id="dash-finance-svg-title">Receita líquida, custos e margem por período</title>
+        <desc id="dash-finance-svg-description">Série financeira real para ${escapeHtml(series[0].period)} a ${escapeHtml(series[series.length - 1].period)}; margem em eixo percentual separado.</desc>
+        ${grid}
+        <path class="finance-series-line finance-series-revenue" d="${pathFor("revenue", moneyY)}"></path>
+        <path class="finance-series-line finance-series-cost" d="${pathFor("cost", moneyY)}"></path>
+        ${marginPath}
+        ${periodLabels}
+      </svg>
+      <div class="chart-legend" aria-label="Séries do gráfico">
+        <span><i class="legend-swatch legend-revenue"></i>Receita líquida</span>
+        <span><i class="legend-swatch legend-cost"></i>Custos totais</span>
+        ${margins.length === series.length ? '<span><i class="legend-swatch legend-margin"></i>Margem (%)</span>' : ""}
+      </div>
+    `;
+    container.setAttribute("aria-label", `Evolução financeira real, ${series.length} períodos`);
+  }
+
+  function updateDashboardOperations(qualityReport, qualitySummary) {
+    const activityBody = document.getElementById("dash-activity-tbody");
+    const validationStatus = document.getElementById("dash-ops-validation");
+    const alertsStatus = document.getElementById("dash-ops-alerts");
+
+    const activities = [
+      ...state.analyses.map((analysis) => ({
+        activity: ({ financial_esg: "Análise financeira & ESG", predictive: "Análise preditiva", simulation: "Simulação What-If" })[analysis.analysis_type] || analysis.analysis_type || "Análise",
+        source: analysis.model_name || analysis.analysis_type || "EcoBI",
+        status: analysis.status || "Registrada",
+        date: analysis.created_at || "",
+      })),
+      ...state.datasets.map((dataset) => ({
+        activity: dataset.filename || dataset.name || "Dataset",
+        source: "Importação de dados",
+        status: "Disponível",
+        date: dataset.created_at || "",
+      })),
+    ].sort((first, second) => String(second.date).localeCompare(String(first.date))).slice(0, 6);
+
+    if (activityBody) {
+      activityBody.innerHTML = activities.length
+        ? activities.map((item) => `<tr><td>${escapeHtml(item.activity)}</td><td>${escapeHtml(item.source)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.date ? formatDateShort(item.date) : "—")}</td></tr>`).join("")
+        : '<tr><td class="empty-cell" colspan="4">Ainda não há análises ou importações neste projeto.</td></tr>';
     }
-    if (emissEl && Number.isFinite(totalEmiss)) {
-      emissEl.textContent = `${formatNumber(totalEmiss, 2)} tCO2e`;
+
+    if (validationStatus) {
+      const latestValidation = state.validations[0];
+      validationStatus.textContent = latestValidation ? latestValidation.status : "Nenhuma validação registrada";
     }
-    if (credSub && Number.isFinite(credits)) {
-      credSub.textContent = `Créditos separados (não abatidos): ${formatNumber(credits, 2)} tCO2e`;
+
+    if (alertsStatus) {
+      const summary = qualitySummary || safeJsonParse(qualityReport.summary_json || qualityReport.summary, {}) || {};
+      const alertCount = Number(qualityReport.inconsistency_count ?? (Array.isArray(summary.inconsistencies) ? summary.inconsistencies.length : NaN));
+      alertsStatus.textContent = state.qualityReport && Number.isFinite(alertCount)
+        ? `${new Intl.NumberFormat("pt-BR").format(alertCount)} inconsistência(s)`
+        : "Aguardando perfilamento de dados";
     }
-    if (qualEl && Number.isFinite(qScore)) {
-      qualEl.textContent = `${formatNumber(qScore, 1)}%`;
+  }
+
+  function updateDashboardCharts(financial, esg, monthlySeries) {
+    updateDashboardFinanceChart(monthlySeries);
+
+    const emissionRows = [
+      ["scope1", esg.scope1_co2e_tons],
+      ["scope2", esg.scope2_co2e_tons],
+      ["scope3", esg.scope3_co2e_tons],
+    ].map(([key, value]) => [key, value === null || value === undefined ? NaN : Number(value)]);
+    const container = document.getElementById("dash-emissions-chart");
+    if (container) {
+      const knownValues = emissionRows.map(([, value]) => value).filter(Number.isFinite);
+      const maximum = Math.max(...knownValues.map(Math.abs), 0);
+      let visibleRows = 0;
+      emissionRows.forEach(([key, value]) => {
+        const row = container.querySelector(`[data-metric="${key}"]`);
+        if (!row) return;
+        row.hidden = !Number.isFinite(value);
+        if (!Number.isFinite(value)) return;
+        visibleRows += 1;
+        const amount = row.querySelector("strong");
+        const bar = row.querySelector(".metric-bar-fill");
+        if (amount) amount.textContent = `${formatNumber(value, 2)} tCO2e`;
+        if (bar) bar.style.width = `${maximum ? Math.min(Math.abs(value) / maximum * 100, 100) : 0}%`;
+      });
+      let empty = container.querySelector(".dashboard-chart-empty");
+      if (!empty) {
+        empty = document.createElement("p");
+        empty.className = "dashboard-chart-empty empty-state-text";
+        empty.textContent = "Emissões por escopo disponíveis após a análise ESG.";
+        container.append(empty);
+      }
+      empty.hidden = visibleRows > 0;
+      container.setAttribute("aria-label", visibleRows ? `${visibleRows} escopos com emissões calculadas` : "Emissões por escopo indisponíveis");
     }
-    if (valSub) {
-      const appCount = (state.validations || []).filter((v) => v.status !== "REJEITADO").length;
-      const rejCount = (state.validations || []).filter((v) => v.status === "REJEITADO").length;
-      valSub.textContent = `Análises aprovadas: ${appCount} | Rejeitadas: ${rejCount}`;
+
+    const credits = esg.carbon_credits_acquired_tco2e;
+    const creditsElement = document.getElementById("dash-carbon-credits");
+    if (creditsElement && credits !== null && credits !== undefined && Number.isFinite(Number(credits))) {
+      creditsElement.textContent = `Créditos de carbono adquiridos (em bloco independente): ${formatNumber(Number(credits), 2)} tCO2e`;
     }
+  }
+  function updateWorkflowStates() {
+    const steps = [
+      { view: "view-projects", done: Boolean(state.activeProjectId), blocked: false, waiting: "Aguardando projeto" },
+      { view: "view-import", done: state.datasets.length > 0, blocked: !state.activeProjectId, waiting: "Aguardando projeto" },
+      { view: "view-quality", done: Boolean(state.qualityReport), blocked: !state.activeDatasetId, waiting: "Aguardando dataset" },
+      { view: "view-assistant", done: Boolean(state.financialEsgAnalysis), blocked: !state.activeDatasetId, waiting: "Aguardando dataset" },
+      { view: "view-predictive", done: Boolean(state.predictiveAnalysis), blocked: !state.activeDatasetId, waiting: "Aguardando dataset" },
+      { view: "view-simulator", done: Boolean(state.simulationResult), blocked: !state.financialEsgAnalysis, waiting: "Aguardando análise" },
+      { view: "view-validation", done: state.validations.length > 0, blocked: !state.financialEsgAnalysis, waiting: "Aguardando análise" },
+      { view: "view-powerbi", done: state.powerbiReports.length > 0, blocked: !state.financialEsgAnalysis, waiting: "Aguardando análise" },
+    ];
+
+    steps.forEach((step) => {
+      const button = document.querySelector(`.workflow-step-btn[data-goto-view="${step.view}"]`);
+      if (!button) return;
+      const status = button.querySelector(".step-meta");
+      const current = state.currentView === step.view;
+      button.classList.toggle("is-current", current);
+      button.classList.toggle("is-complete", step.done && !current);
+      button.classList.toggle("is-blocked", step.blocked && !current);
+      if (current) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+      if (status) status.textContent = current ? "Etapa atual" : step.done ? "Concluído" : step.blocked ? step.waiting : "Disponível";
+      button.setAttribute("aria-label", `${button.querySelector(".step-title")?.textContent || "Etapa"}: ${status?.textContent || "Disponível"}`);
+    });
+  }
+
+  function applyUiPreferences() {
+    const theme = localStorage.getItem(STORAGE_KEYS.THEME) === "dark" ? "dark" : "light";
+    const sidebarCollapsed = localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true";
+    document.documentElement.setAttribute("data-theme", theme);
+    const themeButton = document.getElementById("btn-toggle-theme");
+    if (themeButton) {
+      themeButton.setAttribute("aria-label", theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro");
+      themeButton.setAttribute("aria-pressed", String(theme === "dark"));
+    }
+    const sidebar = document.getElementById("app-sidebar");
+    const toggleButton = document.getElementById("btn-toggle-sidebar");
+    if (sidebar) sidebar.classList.toggle("is-collapsed", sidebarCollapsed);
+    if (toggleButton) {
+      toggleButton.setAttribute("aria-expanded", String(!sidebarCollapsed));
+      toggleButton.setAttribute("aria-label", sidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral");
+      toggleButton.title = sidebarCollapsed ? "Expandir menu" : "Recolher menu";
+    }
+    document.querySelectorAll(".nav-item[data-view]").forEach((button) => {
+      const label = button.querySelector(".nav-text")?.textContent.trim();
+      if (label) {
+        button.title = label;
+        if (sidebarCollapsed) button.setAttribute("aria-label", label);
+        else button.removeAttribute("aria-label");
+      }
+    });
   }
 
   // ==========================================================================
   // 17. EVENT LISTENERS E INICIALIZAÇÃO COMPLETA
   // ==========================================================================
+  function normalizeGlobalSearchText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR")
+      .trim();
+  }
+
+  function closeGlobalSearch(restoreFocus = false) {
+    const input = document.getElementById("global-search-input");
+    const results = document.getElementById("global-search-results");
+    if (results) results.hidden = true;
+    if (input) {
+      input.setAttribute("aria-expanded", "false");
+      if (restoreFocus) input.focus();
+    }
+  }
+
+  function renderGlobalSearchResults(query) {
+    const input = document.getElementById("global-search-input");
+    const results = document.getElementById("global-search-results");
+    if (!input || !results) return;
+
+    const term = normalizeGlobalSearchText(query);
+    results.replaceChildren();
+    if (!term) {
+      closeGlobalSearch();
+      return;
+    }
+
+    const candidates = [
+      ...Array.from(document.querySelectorAll(".nav-item[data-view]"), (button) => ({
+        type: "view",
+        id: button.dataset.view,
+        label: button.querySelector(".nav-text")?.textContent.trim() || "Módulo",
+        detail: "Módulo",
+      })),
+      ...state.projects.map((project) => ({
+        type: "project",
+        id: project.id,
+        label: project.name || "Projeto sem nome",
+        detail: project.sector || "Projeto",
+      })),
+      ...state.datasets.map((dataset) => ({
+        type: "dataset",
+        id: dataset.id || dataset.dataset_id,
+        label: dataset.filename || dataset.name || "Dataset sem nome",
+        detail: "Dataset do projeto ativo",
+      })),
+    ].filter((item) => item.id && normalizeGlobalSearchText(`${item.label} ${item.detail}`).includes(term)).slice(0, 8);
+
+    if (!candidates.length) {
+      const empty = document.createElement("p");
+      empty.className = "global-search-empty";
+      empty.setAttribute("role", "status");
+      empty.textContent = "Nenhum módulo, projeto ou dataset correspondente.";
+      results.append(empty);
+    } else {
+      candidates.forEach((item) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "global-search-result";
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        option.dataset.searchType = item.type;
+        option.dataset.searchId = item.id;
+        const label = document.createElement("span");
+        label.className = "global-search-result-label";
+        label.textContent = item.label;
+        const detail = document.createElement("span");
+        detail.className = "global-search-result-detail";
+        detail.textContent = item.detail;
+        option.append(label, detail);
+        results.append(option);
+      });
+    }
+
+    results.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function bindGlobalSearch() {
+    const input = document.getElementById("global-search-input");
+    const results = document.getElementById("global-search-results");
+    if (!input || !results) return;
+
+    input.addEventListener("input", () => renderGlobalSearchResults(input.value));
+    input.addEventListener("keydown", (event) => {
+      const options = results.querySelectorAll(".global-search-result");
+      if (event.key === "Escape") {
+        closeGlobalSearch();
+      } else if (event.key === "ArrowDown" && options.length) {
+        event.preventDefault();
+        options[0].focus();
+      } else if (event.key === "Enter" && options.length) {
+        event.preventDefault();
+        options[0].click();
+      }
+    });
+    results.addEventListener("keydown", (event) => {
+      const options = Array.from(results.querySelectorAll(".global-search-result"));
+      const currentIndex = options.indexOf(document.activeElement);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeGlobalSearch(true);
+      } else if (event.key === "ArrowDown" && currentIndex < options.length - 1) {
+        event.preventDefault();
+        options[currentIndex + 1].focus();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        if (currentIndex <= 0) input.focus();
+        else options[currentIndex - 1].focus();
+      }
+    });
+    results.addEventListener("click", async (event) => {
+      const option = event.target.closest(".global-search-result");
+      if (!option) return;
+      const { searchType, searchId } = option.dataset;
+      closeGlobalSearch(true);
+      input.value = "";
+      try {
+        if (searchType === "view") {
+          switchView(searchId);
+        } else if (searchType === "project") {
+          await setActiveProject(searchId, true);
+          switchView("view-dashboard");
+        } else if (searchType === "dataset" && state.datasets.some((dataset) => (dataset.id || dataset.dataset_id) === searchId)) {
+          const selector = document.getElementById("global-dataset-select");
+          if (selector) {
+            selector.value = searchId;
+            selector.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+      } catch (error) {
+        showToast(`Não foi possível abrir o resultado da busca: ${error.message}`, true);
+      }
+    });
+    document.addEventListener("click", (event) => {
+      if (!input.closest(".global-search")?.contains(event.target)) closeGlobalSearch();
+    });
+  }
   function bindEvents() {
+    updateTopbarPageTitle();
+    bindGlobalSearch();
+    document.getElementById("btn-toggle-theme")?.addEventListener("click", () => {
+      const theme = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem(STORAGE_KEYS.THEME, theme);
+      document.getElementById("btn-toggle-theme")?.setAttribute("aria-label", theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro");
+      document.getElementById("btn-toggle-theme")?.setAttribute("aria-pressed", String(theme === "dark"));
+    });
+
+    document.getElementById("btn-toggle-sidebar")?.addEventListener("click", () => {
+      const sidebar = document.getElementById("app-sidebar");
+      if (!sidebar) return;
+      if (window.matchMedia("(max-width: 860px)").matches) {
+        sidebar.classList.remove("is-open");
+        const mobileButton = document.getElementById("btn-open-sidebar");
+        mobileButton?.setAttribute("aria-expanded", "false");
+        mobileButton?.setAttribute("aria-label", "Abrir menu lateral");
+        return;
+      }
+      const collapsed = sidebar.classList.toggle("is-collapsed");
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, String(collapsed));
+      const button = document.getElementById("btn-toggle-sidebar");
+      button?.setAttribute("aria-expanded", String(!collapsed));
+      button?.setAttribute("aria-label", collapsed ? "Expandir menu lateral" : "Recolher menu lateral");
+      if (button) button.title = collapsed ? "Expandir menu" : "Recolher menu";
+      document.querySelectorAll(".nav-item[data-view]").forEach((navButton) => {
+        const label = navButton.querySelector(".nav-text")?.textContent.trim();
+        if (!label) return;
+        if (collapsed) navButton.setAttribute("aria-label", label);
+        else navButton.removeAttribute("aria-label");
+      });
+    });
+
     // 1. Navegação da Sidebar
     document.querySelectorAll(".nav-item[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -2423,18 +2910,12 @@
 
     // Menu mobile da Sidebar
     const openSideBtn = document.getElementById("btn-open-sidebar");
-    const closeSideBtn = document.getElementById("btn-close-sidebar");
     const sidebar = document.getElementById("app-sidebar");
     if (openSideBtn && sidebar) {
       openSideBtn.addEventListener("click", () => {
-        sidebar.classList.add("is-open");
-        openSideBtn.setAttribute("aria-expanded", "true");
-      });
-    }
-    if (closeSideBtn && sidebar) {
-      closeSideBtn.addEventListener("click", () => {
-        sidebar.classList.remove("is-open");
-        if (openSideBtn) openSideBtn.setAttribute("aria-expanded", "false");
+        const isOpen = sidebar.classList.toggle("is-open");
+        openSideBtn.setAttribute("aria-expanded", String(isOpen));
+        openSideBtn.setAttribute("aria-label", isOpen ? "Fechar menu lateral" : "Abrir menu lateral");
       });
     }
 
@@ -2451,19 +2932,46 @@
       globalDsSelect.addEventListener("change", async () => {
         state.activeDatasetId = globalDsSelect.value;
         localStorage.setItem(STORAGE_KEYS.ACTIVE_DATASET_ID, state.activeDatasetId);
+        state.sampleData = null;
+        state.qualityReport = null;
+        syncDashboardAnalysis();
         syncDatasetSelector();
+        updateDashboardKPIs();
         if (state.activeDatasetId) {
           await Promise.all([
             loadDatasetSample(state.activeDatasetId, true),
             loadQualityReport(state.activeDatasetId, true),
           ]);
         }
+        updateDashboardKPIs();
       });
     }
 
     // Modal de Sessão Local & LGPD
     document.getElementById("btn-open-session-modal")?.addEventListener("click", openSessionModal);
     document.getElementById("btn-close-session-modal")?.addEventListener("click", closeSessionModal);
+    document.addEventListener("keydown", (event) => {
+      const modal = document.getElementById("modal-session");
+      if (!modal || modal.hidden) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSessionModal();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...modal.querySelectorAll("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex='-1'])")]
+        .filter((element) => element.getClientRects().length);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
 
     document.getElementById("form-session-auth")?.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -3191,11 +3699,11 @@
 
       if (elRev) elRev.textContent = formatCurrency(totals.receita_bruta_total || 0);
       if (elProfit) elProfit.textContent = formatCurrency(totals.lucro_operacional_total || 0);
-      if (elMargin) elMargin.textContent = `Margem média ponderada: ${(totals.margem_operacional_ponderada_pct || 0).toFixed(1)}%`;
+      if (elMargin) elMargin.textContent = `Margem média ponderada: ${formatNumber(totals.margem_operacional_ponderada_pct || 0, 1)}%`;
       if (elEmiss) elEmiss.textContent = `${(totals.emissoes_totais_brutas_tco2e || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tCO2e`;
-      if (elScopes) elScopes.textContent = `Escopo 1: ${(totals.emissoes_escopo_1_tco2e || 0).toFixed(1)} · Escopo 2: ${(totals.emissoes_escopo_2_tco2e || 0).toFixed(1)} · Escopo 3: ${(totals.emissoes_escopo_3_tco2e || 0).toFixed(1)}`;
-      if (elInt) elInt.textContent = (totals.intensidade_carbono_corporativa_tco2e_milhao || 0).toFixed(4);
-      if (elCredits) elCredits.textContent = `${(totals.creditos_carbono_segregados_tco2e || 0).toFixed(2)} tCO2e`;
+      if (elScopes) elScopes.textContent = `Escopo 1: ${formatNumber(totals.emissoes_escopo_1_tco2e || 0, 1)} · Escopo 2: ${formatNumber(totals.emissoes_escopo_2_tco2e || 0, 1)} · Escopo 3: ${formatNumber(totals.emissoes_escopo_3_tco2e || 0, 1)}`;
+      if (elInt) elInt.textContent = formatNumber(totals.intensidade_carbono_corporativa_tco2e_milhao || 0, 4);
+      if (elCredits) elCredits.textContent = `${formatNumber(totals.creditos_carbono_segregados_tco2e || 0, 2)} tCO2e`;
 
       const lineage = overview.lineage_breakdown || {};
       if (elLineage) elLineage.textContent = `${lineage.real_validated_projects || 0} REAL / ${lineage.estimated_in_analysis_projects || 0} ESTIMADO`;
@@ -3216,8 +3724,8 @@
                   <td>${escapeHtml(item.name)}</td>
                   <td>${escapeHtml(item.sector)}</td>
                   <td>${formatCurrency(item.receita_bruta)}</td>
-                  <td>${item.emissoes_totais_tco2e.toFixed(2)} tCO2e</td>
-                  <td>${item.intensidade_carbono_tco2e_milhao.toFixed(4)}</td>
+                  <td>${formatNumber(item.emissoes_totais_tco2e, 2)} tCO2e</td>
+                  <td>${formatNumber(item.intensidade_carbono_tco2e_milhao, 4)}</td>
                   <td><span class="badge ${item.data_origin === "REAL" ? "badge-success" : "badge-secondary"}">${escapeHtml(item.data_origin)}</span></td>
                   <td><span class="badge ${badgeClass}">${escapeHtml(item.eco_badge)}</span></td>
                 </tr>
@@ -3243,7 +3751,7 @@
       if (jobsBody) {
         const jobs = jobsRes.jobs || [];
         if (!jobs.length) {
-          jobsBody.innerHTML = `<tr><td colspan="6" class="empty-cell">Nenhum job agendado cadastrado.</td></tr>`;
+          jobsBody.innerHTML = `<tr><td colspan="6" class="empty-cell"><div class="empty-state"><svg class="scheduler-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><strong>Nenhuma rotina ativa</strong><span>Crie uma rotina para automatizar sincronizações, auditorias ou backups.</span></div></td></tr>`;
         } else {
           jobsBody.innerHTML = jobs
             .map((j) => {
@@ -3311,7 +3819,7 @@
       if (logsBody) {
         const runs = runsRes.runs || [];
         if (!runs.length) {
-          logsBody.innerHTML = `<tr><td colspan="6" class="empty-cell">Nenhum log de execução registrado ainda.</td></tr>`;
+          logsBody.innerHTML = `<tr><td colspan="6" class="empty-cell"><div class="empty-state"><svg class="scheduler-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"></path><path d="M3 3v5h5m4-1v5l3 2"></path></svg><strong>Nenhuma execução registrada</strong><span>O histórico será preenchido após a primeira rotina ser executada.</span></div></td></tr>`;
         } else {
           logsBody.innerHTML = runs
             .map((r) => {
@@ -3338,8 +3846,10 @@
   }
 
   async function initApp() {
+    applyUiPreferences();
     updateSessionUI();
     bindEvents();
+    updateWorkflowStates();
     await ensureLocalSession(true);
     await Promise.all([loadMemoryStatus(), loadModelSettings(), loadProjects()]);
   }

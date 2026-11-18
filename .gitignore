@@ -27,3 +27,11 @@ Thumbs.db
 build/
 dist/
 *.spec.bak
+
+# Temporary test runners & scratch directories
+.tmp-pytest/
+.codex-tmp/
+graphify-out/
+
+# Local PowerBI exports
+data/powerbi_exports/

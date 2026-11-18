@@ -109,11 +109,14 @@ def wait_for_health_check(url: str, timeout_sec: float = 30.0, logger: Optional[
 def main() -> None:
     """Ponto de entrada do launcher executável."""
     parser = argparse.ArgumentParser(description="Launcher Local do EcoBI Intelligence")
-    parser.add_argument("--host", default="127.0.0.1", help="Endereço IP de escuta (padrão: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000, help="Porta HTTP local (padrão: 8000)")
+    parser.add_argument("--host", choices=(config.ECOBI_HOST,), default=config.ECOBI_HOST, help="Bind local fixo; somente 127.0.0.1")
+    parser.add_argument("--port", type=int, choices=range(1, 65536), default=config.ECOBI_PORT, help="Porta HTTP local")
     parser.add_argument("--no-browser", action="store_true", help="Não abre automaticamente o navegador web")
     parser.add_argument("--check-only", action="store_true", help="Apenas valida o ambiente e encerra")
     args = parser.parse_args()
+    config.ECOBI_PORT = args.port
+    os.environ["ECOBI_PORT"] = str(args.port)
+    config.LOCAL_ALLOWED_ORIGINS = [f"http://127.0.0.1:{args.port}", f"http://localhost:{args.port}"]
 
     base_dir = ROOT_DIR
     logs_dir = base_dir / "data" / "logs"
@@ -156,6 +159,8 @@ def main() -> None:
     signal.signal(signal.SIGINT, handle_sigint)
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, handle_sigint)
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, handle_sigint)
 
     # Abre navegador após health check em thread separada
     if not args.no_browser:

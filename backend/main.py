@@ -15,7 +15,7 @@ import sqlite3
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import (
     Body,
@@ -32,6 +32,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -61,7 +62,7 @@ from backend.services import (
 class SessionCreateRequest(BaseModel):
     operator_name: str = Field(..., min_length=1, max_length=120)
     operator_email: str = Field(..., min_length=3, max_length=180)
-    role: str = Field(default="analyst")
+    role: Literal["analyst"] = "analyst"
     lgpd_consent: bool = Field(default=False)
 
 
@@ -342,6 +343,7 @@ def _list_project_validations(project_id: str) -> List[Dict[str, Any]]:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    security.assert_loopback_process_listeners()
     _ensure_db_ready()
     scheduler.start_scheduler_service(poll_interval_sec=15.0)
     try:
@@ -359,16 +361,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-    ],
+    allow_origins=config.LOCAL_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Session-Token"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+app.add_middleware(security.LocalRequestSecurityMiddleware)
 
 
 @app.middleware("http")

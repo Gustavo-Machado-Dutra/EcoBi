@@ -1,8 +1,28 @@
 # EcoBI Intelligence — Documentação do Sistema
 
+## Overflow em Qualidade — conclusão 2026-11-17
+
+- No Chromium real, 14 labels `.sr-only` absolutos da tabela de mapeamento usavam `BODY` como containing block e escapavam do wrapper rolável, ampliando o documento a 731 px em viewport de 390 px.
+- Correção scoped: `#view-quality #form-canonical-mapping .table-responsive { position: relative; }`; tabela mantém 1,130 px e scroll horizontal interno. A/B/C/D pós-correção retornaram 390/390/390.
+- 390×844, 768×1024, 1280×800 e 1440×900 verificados no browser MCP; regressão estrutural adicionada em `tests/test_quality_overflow.py`. Evidências e a distinção entre verificação MCP manual e teste automatizado constam em `verification.md`.
+
+## Continuidade navegador e overflow — 2026-11-17
+
+- O servidor real é MCP `chrome-devtools`; a chamada foi negada: `MCP tool call requires approval, but approval policy is never.` A stanza aprovada de `node_repl` não governa esse servidor. `browser@openai-bundled` está habilitado, porém não listou sessão; Computer Use reportou host indisponível.
+- A configuração da sessão não pode ser reiniciada nem a configuração de usuário alterada por este workspace. Nenhuma ACL/configuração foi modificada. T13 continua bloqueada até aprovação do MCP real e reinício pelo usuário/ambiente.
+- Inspeção estática confirma a tabela real e o scroll intencional de `.table-responsive`, mas não identifica o descendente que escapa do clipping; A–D não foram executados e não houve correção especulativa. Consultar `verification.md`.
+
 **Versão:** 1.1  
 **Status:** arquitetura conceitual para o TCC  
 **Objetivo:** documentar o produto, sua arquitetura, responsabilidades, requisitos de alto nível e decisões tecnológicas sem antecipar uma especificação detalhada de implementação.
+
+## Homologação responsiva — continuação 2026-11-17
+
+- Revisão visual manual das 66 capturas existentes dos outros 11 módulos: Light/Dark × 1440×900, 768×1024 e 390×844. Evidência em `.specs/features/ecobi-modern-green-design-system/evidence/playwright-local/final/`; dashboard tem rodada/evidências separadas.
+- As imagens não são novas capturas nesta continuação nem validam estados funcionais. Navegação, interações de tema/sidebar e acessibilidade são categorias separadas em `verification.md`.
+- O overflow raiz de Qualidade está correlacionado ao subtree da tabela: tabela 1130px/scrollport 303px, `main.scrollWidth` 375px, raiz 731px e raiz 390px ao ocultar a tabela. Elemento/estilo escapante ainda requer inspeção DOM atual; sem CSS especulativo.
+- T13 remains pending: browser DevTools navigation to QA requires approval and was denied, so no real DOM/390px viewport investigation was claimed; static synthetic probe discarded.
+- Pytest temp diagnosis: default `tempfile.gettempdir()` was `%LOCALAPPDATA%\\Temp`; redirecting `TEMP`/`TMP`/`TMPDIR` to workspace `.codex-tmp` and basetemp to a unique child restored operation without changing Windows ACL/configuration. Power BI tests: 2 passed; full suite: 34 passed, one warning, 202.77 s.
 
 ## 1. Visão geral
 
@@ -307,3 +327,53 @@ Medidas para reduzir consumo:
 ---
 
 **Nota de status e homologação:** o MVP (`T1`–`T20`), a Fase 2 (`T21`–`T28`), a Fase 3 (`T29`–`T36`) e a Fase 4 (`T37`–`T44`) encontram-se 100% implementados, verificados por suíte automatizada (`33 passed, 0 failed`) e **homologados para distribuição piloto no Windows**. O executável autocontido `dist/EcoBI/EcoBI.exe` foi validado em ambiente limpo sem dependência de Python ou Git, com persistência transacional SQLite garantida, saneamento de warnings e trilha de auditoria completa.
+
+## 19. Evolução visual Sustainable Tech 2.0
+
+### Modern Green Enterprise 3.0 — implementação e QA visual/funcional
+
+Feature e especificação: `.specs/features/ecobi-modern-green-design-system/`. A aplicação Vanilla preserva os 12 destinos, APIs e módulos existentes. Na continuidade de 2026-11-16, a cadeia do dashboard foi corrigida para hidratar a análise financeira/ESG persistida do dataset selecionado; respostas atrasadas de projetos/datasets anteriores agora são descartadas. Gráficos financeiros receberam estilos SVG explícitos. Duas bases sintéticas isoladas foram analisadas e exibidas no Chromium; métricas, créditos separados e troca de projetos foram verificados. Os 12 módulos foram capturados em Light/Dark; dashboard validado em 1440×1000, 1280×800, 768×1024 e 390×844 sem overflow horizontal. Pytest: `33 passed` (um aviso de depreciação); `node --check` passou; verificação DOM/AX, modal/teclado, sidebar e reduced-motion executadas. Não há certificação WCAG: contraste completo e leitor de tela permanecem sem validação formal. Imagem de referência não disponível ao ambiente. `.git` está read-only; sem commit ou push. Evidências e limitações em `.specs/features/ecobi-modern-green-design-system/verification.md`.
+
+A evolução visual incremental da interface web está em andamento em `.specs/features/ecobi-design-system-2/`. O escopo preserva HTML/CSS/JavaScript nativos, contratos FastAPI, IDs e navegação existentes. A camada inicial inclui tokens semânticos, tema claro/escuro persistente, sidebar compactável, KPIs separados de receita bruta/líquida e composição financeira/emissões derivada de análises reais. Comparações temporais não são exibidas até que séries históricas estejam disponíveis no contrato de dados; valores ausentes permanecem sem preenchimento.
+
+### Revisão global Modern Green Enterprise 3.0 — 2026-11-16
+
+Shell fullscreen, organização global do header, tokens Dark Mode 2.0, padrão de cards KPI e estados vazios do agendador foram implementados. O ajuste mobile empilha os seletores de projeto/dataset abaixo de 520px. A revisão local com Playwright gerou e inspecionou 96 capturas dos 12 módulos, dois temas e quatro resoluções; 24 casos adicionais em 390×844 e duas capturas do banner LGPD foram registrados. Pytest: `33 passed` (1 aviso de depreciação); `node --check frontend/app.js` e `git diff --check` passaram. O viewport e o conteúdo principal não apresentaram pan horizontal; a leitura de `documentWidth=731` somente na view Quality foi registrada sem pan reproduzível. Uma mensagem genérica 404 no console não foi atribuída nem reproduzida. Acessibilidade formal/WCAG, leitor de tela, imagem de referência ausente e escrita Git read-only continuam como limitações; não houve commit/push. Evidências em `.specs/features/ecobi-modern-green-design-system/verification.md`.
+
+
+### Homologa??o de acessibilidade ? fechamento (2026-11-17)
+A auditoria final verificou 48 combina??es de navega??o dos 12 m?dulos (Light/Dark em 1440?900 e 390?844), amostrou aproximadamente 2.580 textos renderizados sem falha nos limites 4.5:1/3:1 e executou foco/skip link, ?rvore AX, r?tulos, aria-live e prefers-reduced-motion. Foram corrigidos contraste secund?rio/Dark Mode, hierarquia H1?H3 da Central de Valida??o e overflow de 13px no formul?rio do Assistente em mobile. A tabela de Qualidade ? larga, mas o scroll est? contido; documentWidth 731 n?o causa pan do viewport. Regress?o final: 33 testes aprovados (1 aviso de deprecia??o), node --check e git diff --check aprovados. Narrator est? instalado, por?m fala n?o foi validada em headless; n?o h? certifica??o WCAG integral. Escrita Git permanece indispon?vel.
+
+
+### Dark System 3.0 follow-up — 2026-11-17
+
+The isolated QA service returned HTTP 200. Final frontend regression passed: Pytest 33 passed with one Starlette/httpx deprecation warning, `node --check frontend/app.js`, and `git diff --check`. A current synthetic-data dashboard was rendered and visually inspected in Playwright-managed Chromium CLI at Light 1440x1600, 1440x900, and 390x844; screenshots are under `.specs/features/ecobi-modern-green-design-system/evidence/playwright-local/dark-system3/`. A specificity defect exposing desktop mobile/close buttons was corrected, as were narrow-screen dashboard action buttons. This is not a new 12-module/Dark homologation: the interactive browser-control call requires unavailable approval, so recent Dark CSS and collapsed-sidebar behavior remain uninspected. No standalone approved logo asset was found. Maestri CLI unavailable. `.git` has explicit sandbox DENY write ACLs; no commit or push attempted. See feature `verification.md`.
+The independent QA review confirmed the workflow ribbon is an internally scrollable region (`overflow-x:auto`), not proof of page pan; Dark `color-scheme` is explicitly overridden correctly. Inconsistent numeric prefixes in Analysis navigation labels were removed and screens recaptured in Light. Current Dark and full-module visual review remain pending.
+Mobile 390px screenshots place some header/action surfaces at the viewport edge; current scrollWidth/pan was not measurable in the static browser session, so responsive approval remains pending interactive recheck.
+
+### Continuação Dark System 3.0 — 2026-11-17
+
+O Chromium gerenciado instalado (156.0.8078.4) gerou renders atuais do dashboard Light em 1440×900, 1280×800, 768×1024 e 390×844, inspecionados em `.specs/features/ecobi-modern-green-design-system/evidence/playwright-local/dark-system3/`. A API QA respondeu HTTP 200 e o banco isolado contém dois projetos/datasets sintéticos. No mobile, o contorno do seletor parece atingir a borda direita; a medição DOM/scroll necessária para classificar overflow depende de cliente Playwright ou sessão de navegador autorizada. Playwright não está instalado; npm offline retornou `ENOTCACHED`, e a autorização Computer Use para Chrome foi negada. Os 12 módulos/tema Dark/sidebar recolhida não foram revalidados nesta rodada. Nenhuma mudança de código visual foi feita. Verificação detalhada em `.specs/features/ecobi-modern-green-design-system/verification.md`.
+
+Revisao posterior: o dashboard Dark atual foi renderizado e inspecionado em cinco capturas (1440x900, 1280x800, 768x1024, 390x844 e 1440x1600). A aparencia geral e os dados sinteticos estao legiveis; a tela mobile mostra controles proximos a borda, sem evidencia DOM atual para classificar overflow. Os outros 11 modulos e a sidebar recolhida nao foram navegados; a verificacao aguarda Playwright ou controle interativo aprovado. Nenhuma mudanca de codigo foi feita.
+
+### Retomada técnica — 2026-11-17
+
+O backend corrige a duplicação de medidas ao exportar várias análises PBIP: a linha mensal agora carrega identidade de origem (`source_row_id`) e a exportação deduplica somente a mesma linha do mesmo dataset, mantendo registros distintos do mesmo período. Cada análise é reconciliada contra seus próprios KPIs, e a saída é reconciliada contra as linhas únicas exportadas. Regressão sintética cobre seis execuções repetidas e duas linhas do período igual.
+
+Os 12 módulos foram navegados estruturalmente em Light e Dark no viewport mobile 390×844; títulos, seleção de rota e nomes acessíveis de controles visíveis foram conferidos. A navegação confirma rotas, mas não equivale a inspeção visual integral. Menu mobile foi aberto/fechado com estado ARIA sincronizado; logo recolheu/expandiu a sidebar desktop; o tema persistiu após reload. Durante a view Qualidade, `scrollWidth` raiz mostrou 724px em uma leitura, enquanto `main` permaneceu 390px; captura expirou, portanto a anomalia fica em investigação sem correção especulativa. Não se concluem inspeção visual detalhada dos outros 11 módulos, sidebar desktop recolhida em render, leitor de tela ou certificação WCAG.
+
+A suíte completa inicial executada na retomada teve 33 aprovados e um erro de caminho temporário longo do Windows durante geração do tema PBIP. O título do fixture foi encurtado, o caso isolado passou e a repetição completa terminou com **34 passed**, 1 aviso de depreciação Starlette/httpx. Valores e testes são de dados sintéticos. Commit não realizado porque `.git` é read-only.
+## Stabilization follow-up - 2026-11-17
+
+- Python mismatch diagnosed: PATH `python` is global and lacks FastAPI; `.venv\Scripts\python.exe` has FastAPI 0.163.1 and Pytest 9.1.1. Full suite: 35 passed (one Starlette/httpx deprecation warning); focused scheduler/overflow/Power BI run: 7 passed. Pytest temp files stayed under `.codex-tmp`.
+- Chrome DevTools functional checks exercised the navbar and sidebar and used isolated synthetic QA data for scheduler creation, list/status, persistence after reload, and cleanup. The immediate-run action was not triggered.
+- Local SVG favicon now returns HTTP 200. Quality overflow stays corrected: 390px document, natural 1130px table, wrapper scrolling; four viewport widths checked.
+- Prior screenshot checks across four dimensions remain visual evidence; latest browser functionality and automated suite are reported separately in `.specs/features/ecobi-design-system-2/verification.md`.
+## Operational readiness audit - 2026-11-17
+
+This audit addendum narrows the historical pilot claim in this plan. The final regression run is 37 passed with one dependency deprecation warning. SQLite read-only integrity and isolated WAL/rollback checks passed. Self-service role escalation and the scheduled quality-audit no-op were corrected with regression coverage. Multi-user operational readiness remains blocked: an isolated probe showed a distinct session can read an ownerless project. Do not interpret historical screenshots or clean-room notes as current-run validation. The readiness matrix and residual risks are recorded in `.specs/features/ecobi-phase4/verification.md` and `audit-results.json`.
+
+## Local security hardening ? 2026-11-17
+
+The Local-First network hardening follow-up is implemented and automated: launcher bind is fixed to `127.0.0.1`; the request stack validates local Host authorities and ports, explicit local Origins and Fetch Metadata; CORS uses explicit local origins; Ollama egress is restricted to `127.0.0.1:11434` with redirects disabled and `BLOCK_EXTERNAL_AI=True`. Evidence, socket checks, test scope and residual risks are in `.specs/features/ecobi-phase4/verification.md` and `audit-results.json`. Full Pytest passed **47 tests** (211.72 s; one Starlette/httpx deprecation warning). Live Ollama inference remains unverified because no Ollama listener was available. No multi-user authentication or network-shared mode was introduced.

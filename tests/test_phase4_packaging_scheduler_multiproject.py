@@ -36,7 +36,7 @@ def client(tmp_path: Path):
     orig_db = os.environ.get("ECOBI_DB_PATH")
     os.environ["ECOBI_DB_PATH"] = str(test_db)
     database.init_db(test_db)
-    with TestClient(app) as test_client:
+    with TestClient(app, base_url="http://127.0.0.1:8000", headers={"Origin": "http://127.0.0.1:8000"}) as test_client:
         yield test_client
     if orig_db is not None:
         os.environ["ECOBI_DB_PATH"] = orig_db
@@ -47,35 +47,25 @@ def client(tmp_path: Path):
 @pytest.fixture
 def auth_headers(client: TestClient) -> Dict[str, str]:
     """Gera sessão autenticada com perfil admin para testes protegidos por RBAC."""
-    resp = client.post(
-        "/api/auth/session",
-        json={
-            "operator_name": "Admin Teste",
-            "operator_email": "admin.teste@ecobi.local",
-            "role": "admin",
-            "lgpd_consent": True,
-        },
+    session = security.create_authenticated_session(
+        operator_name="Admin Teste",
+        operator_email="admin.teste@ecobi.local",
+        role="admin",
+        lgpd_consent=True,
     )
-    assert resp.status_code == 201
-    token = resp.json()["token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {session['token']}"}
 
 
 @pytest.fixture
 def operator_headers(client: TestClient) -> Dict[str, str]:
     """Gera sessão autenticada com perfil viewer (menor privilégio para teste de RBAC)."""
-    resp = client.post(
-        "/api/auth/session",
-        json={
-            "operator_name": "Visualizador Filial",
-            "operator_email": "visualizador.filial@ecobi.local",
-            "role": "viewer",
-            "lgpd_consent": True,
-        },
+    session = security.create_authenticated_session(
+        operator_name="Visualizador Filial",
+        operator_email="visualizador.filial@ecobi.local",
+        role="viewer",
+        lgpd_consent=True,
     )
-    assert resp.status_code == 201
-    token = resp.json()["token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {session['token']}"}
 
 
 # ============================================================================
@@ -400,3 +390,66 @@ def test_c24_multiproject_dashboard_consolidation_and_rbac(
         headers=operator_headers,
     )
     assert comp_bad.status_code == 403
+
+
+def test_scheduler_dispatches_persisted_due_job_once(client: TestClient) -> None:
+    job = database.create_scheduled_job(
+        name="Isolated Due-Job Probe",
+        job_type="data_quality_audit",
+        interval_minutes=1,
+    )
+
+    assert asyncio.run(scheduler.check_and_run_due_jobs()) == []
+    database.update_scheduled_job(
+        job_id=job["id"],
+        next_run_at="2000-01-01T00:00:00+00:00",
+        actor="isolated-test",
+    )
+
+    dispatched = asyncio.run(scheduler.check_and_run_due_jobs())
+    assert len(dispatched) == 1
+    assert dispatched[0]["status"] == "SUCCESS"
+
+    persisted_job = database.get_scheduled_job(job["id"])
+    assert persisted_job["last_status"] == "SUCCESS"
+    assert persisted_job["next_run_at"] > datetime.now(timezone.utc).isoformat()
+    assert asyncio.run(scheduler.check_and_run_due_jobs()) == []
+    assert len(database.list_job_execution_logs(job_id=job["id"])) == 1
+
+
+def test_scheduled_quality_audit_profiles_dataset(client: TestClient, auth_headers: Dict[str, str]) -> None:
+    project_response = client.post(
+        "/api/projects",
+        json={"name": "Projeto Isolado Auditoria", "sector": "QA"},
+        headers=auth_headers,
+    )
+    assert project_response.status_code == 201
+    project_id = project_response.json()["id"]
+
+    upload_response = client.post(
+        f"/api/projects/{project_id}/datasets/upload",
+        files={"file": ("audit.csv", "periodo,receita_bruta\n2026-01,100\n2026-02,120\n", "text/csv")},
+        headers=auth_headers,
+    )
+    assert upload_response.status_code == 201
+    dataset_id = upload_response.json()["dataset"]["id"]
+    initial_report = database.get_latest_quality_report(dataset_id)
+
+    job = database.create_scheduled_job(
+        name="Isolated Quality Audit",
+        job_type="data_quality_audit",
+        project_id=project_id,
+        interval_minutes=1,
+    )
+    database.update_scheduled_job(
+        job_id=job["id"],
+        next_run_at="2000-01-01T00:00:00+00:00",
+        actor="isolated-test",
+    )
+
+    results = asyncio.run(scheduler.check_and_run_due_jobs())
+    assert len(results) == 1
+    assert results[0]["status"] == "SUCCESS"
+    assert results[0]["summary"]["datasets_audited_count"] == 1
+    assert results[0]["summary"]["audited_datasets"][0]["dataset_id"] == dataset_id
+    assert database.get_latest_quality_report(dataset_id)["id"] != initial_report["id"]

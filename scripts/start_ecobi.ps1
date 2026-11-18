@@ -3,8 +3,6 @@
     Script de inicialização do EcoBI Intelligence para PowerShell no Windows.
 .DESCRIPTION
     Configura variáveis de ambiente locais, valida diretórios e inicia o EcoBI Launcher.
-.PARAMETER Host
-    Endereço IP de escuta (padrão: 127.0.0.1).
 .PARAMETER Port
     Porta HTTP do servidor (padrão: 8000).
 .PARAMETER NoBrowser
@@ -14,7 +12,7 @@
 #>
 
 param (
-    [string]$Host = "127.0.0.1",
+    [ValidateRange(1, 65535)]
     [int]$Port = 8000,
     [switch]$NoBrowser,
     [switch]$CheckOnly
@@ -39,7 +37,7 @@ if (Test-Path $VenvPython) {
 
 Write-Host "Runtime Python detectado: $PythonExe" -ForegroundColor Cyan
 
-$ArgsList = @("scripts\ecobi_launcher.py", "--host", $Host, "--port", $Port)
+$ArgsList = @("scripts\ecobi_launcher.py", "--host", "127.0.0.1", "--port", $Port)
 if ($NoBrowser) { $ArgsList += "--no-browser" }
 if ($CheckOnly) { $ArgsList += "--check-only" }
 

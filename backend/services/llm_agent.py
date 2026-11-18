@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+from urllib.parse import urlsplit
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -42,7 +43,7 @@ except ImportError:
         LLM_NUM_CTX = int(os.getenv("ECOBI_LLM_NUM_CTX", "4096"))
         LLM_KEEP_ALIVE = os.getenv("ECOBI_LLM_KEEP_ALIVE", "5m")
         LLM_TIMEOUT_SECONDS = int(os.getenv("ECOBI_LLM_TIMEOUT_SECONDS", "60"))
-        BLOCK_EXTERNAL_AI = os.getenv("ECOBI_BLOCK_EXTERNAL_AI", "true").lower() == "true"
+        BLOCK_EXTERNAL_AI = True
 
 try:
     from backend import security
@@ -70,9 +71,20 @@ except ImportError:
 
         @staticmethod
         def verify_external_url_allowed(url: str) -> bool:
-            # Garante que conexões ocorram estritamente em loopback local
-            url_lower = url.lower()
-            return "127.0.0.1" in url_lower or "localhost" in url_lower
+            try:
+                parsed = urlsplit(url)
+                return (
+                    parsed.scheme == "http"
+                    and parsed.hostname == "127.0.0.1"
+                    and parsed.port == 11434
+                    and parsed.username is None
+                    and parsed.password is None
+                    and parsed.path in ("", "/")
+                    and not parsed.query
+                    and not parsed.fragment
+                )
+            except (TypeError, ValueError):
+                return False
 
 try:
     from backend import memory_guard
@@ -532,7 +544,7 @@ async def check_ollama_status() -> Dict[str, Any]:
 
     tags_url = f"{ollama_url.rstrip('/')}/api/tags"
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=3.0) as client:
             resp = await client.get(tags_url)
             if resp.status_code == 200:
                 data = resp.json()
@@ -820,7 +832,7 @@ async def process_assistant_message(
             current_round = 0
 
             try:
-                async with httpx.AsyncClient(timeout=float(timeout_sec)) as client:
+                async with httpx.AsyncClient(follow_redirects=False, timeout=float(timeout_sec)) as client:
                     while current_round < max_rounds:
                         current_round += 1
                         payload = {
@@ -1002,7 +1014,7 @@ async def unload_idle_ollama_model(
 
     if security.verify_external_url_allowed(config.OLLAMA_URL):
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(follow_redirects=False, timeout=5.0) as client:
                 resp = await client.post(
                     f"{config.OLLAMA_URL.rstrip('/')}/api/generate",
                     json={"model": target_model, "prompt": "", "keep_alive": 0},
