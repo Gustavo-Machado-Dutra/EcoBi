@@ -19,6 +19,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
+from uuid import uuid4
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -152,11 +153,23 @@ def ingest_dataset_file(
     project_dir = config.DATA_DIR / project_id
     project_dir.mkdir(parents=True, exist_ok=True)
     clean_filename = Path(filename).name
-    dest_path = security.safe_resolve_path(project_dir, clean_filename)
+    original_path = Path(clean_filename)
+    storage_name = clean_filename
+    while True:
+        dest_path = security.safe_resolve_path(project_dir, storage_name)
+        try:
+            with dest_path.open("xb"):
+                pass
+            break
+        except FileExistsError:
+            storage_name = f"{original_path.stem}_{uuid4().hex}{original_path.suffix}"
 
-    # Cópia segura se o arquivo ainda não estiver no destino
-    if src_path != dest_path:
-        shutil.copy2(src_path, dest_path)
+    try:
+        if src_path != dest_path:
+            shutil.copy2(src_path, dest_path)
+    except OSError:
+        dest_path.unlink(missing_ok=True)
+        raise
 
     file_hash = _compute_sha256(dest_path)
 

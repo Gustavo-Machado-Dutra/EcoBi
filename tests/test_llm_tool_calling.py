@@ -199,8 +199,17 @@ def test_allowlist_blocks_unauthorized_tools_and_injection(
 # Cenários Extras: Endpoint POST /api/projects/{id}/assistant
 # ============================================================================
 
-def test_assistant_api_endpoint(client: TestClient, auth_headers: Dict[str, str], sample_paths: Dict[str, Path]) -> None:
-    """Verifica chamada pelo endpoint HTTP FastAPI POST /api/projects/{id}/assistant."""
+def test_assistant_api_endpoint(
+    client: TestClient,
+    auth_headers: Dict[str, str],
+    sample_paths: Dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verifica resposta e metadados com Ollama offline de forma determinística."""
+    async def ollama_offline() -> Dict[str, Any]:
+        return {"status": "offline", "models": []}
+
+    monkeypatch.setattr(llm_agent, "check_ollama_status", ollama_offline)
     proj_resp = client.post(
         "/api/projects",
         json={"name": "Projeto API Assistente", "sector": "Varejo", "currency": "BRL"},
@@ -220,13 +229,23 @@ def test_assistant_api_endpoint(client: TestClient, auth_headers: Dict[str, str]
     resp = client.post(
         f"/api/projects/{project_id}/assistant",
         json={
-            "message": "Qual é a saúde dos dados e o faturamento do projeto?",
+            "message": "Execute o perfilamento de qualidade do dataset.",
             "dataset_id": dataset_id,
         },
         headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "response" in data
-    assert "tools_called" in data
-    assert data["execution_mode"] in ("deterministic_local_fallback", "ollama_tool_calling")
+    assert isinstance(data["response"], str) and data["response"].strip()
+    assert data["execution_mode"] == "deterministic_local_fallback"
+    assert data["ollama_status"] == "offline"
+    assert len(data["tools_called"]) == 1
+    assert data["tools_called"][0]["tool_name"] == "profile_dataset_quality"
+    tool_result = data["tools_called"][0]["result"]
+    assert isinstance(tool_result, dict)
+    assert tool_result["project_id"] == project_id
+    assert tool_result["dataset_id"] == dataset_id
+    profile_summary = json.loads(tool_result["summary_json"])
+    assert profile_summary["total_rows"] > 0
+    assert profile_summary["total_columns"] > 0
+    assert "receita_bruta" in profile_summary["column_profiles"]

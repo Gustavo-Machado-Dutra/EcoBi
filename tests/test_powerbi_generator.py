@@ -217,7 +217,7 @@ def test_pbip_pbir_generation_and_reconciliation(
         assert any("EcoBITheme.json" in f for f in namelist)
 
 
-def test_pbip_deduplicates_repeated_financial_periods(
+def test_pbip_deduplicates_repeated_analyses_preserving_source_period_rows(
     client: TestClient,
     auth_headers: Dict[str, str],
     sample_paths: Dict[str, Path],
@@ -266,6 +266,21 @@ def test_pbip_deduplicates_repeated_financial_periods(
     fact_rows = pd.read_csv(fact_path)
 
     assert len(fact_rows) == len(analysis_result["monthly_series"])
+    expected_period_counts = pd.Series(
+        [row["periodo"] for row in analysis_result["monthly_series"]]
+    ).value_counts().sort_index()
+    actual_period_counts = fact_rows["Periodo"].value_counts().sort_index()
+    assert actual_period_counts.to_dict() == expected_period_counts.to_dict()
+    expected_revenue_by_period = (
+        pd.DataFrame(analysis_result["monthly_series"])
+        .groupby("periodo")["receita_bruta"]
+        .sum()
+        .sort_index()
+    )
+    actual_revenue_by_period = fact_rows.groupby("Periodo")["ReceitaBruta"].sum().sort_index()
+    assert actual_revenue_by_period.to_dict() == pytest.approx(
+        expected_revenue_by_period.to_dict(), abs=0.01
+    )
     assert fact_rows["Periodo"].duplicated().sum() == 1
     assert fact_rows["ReceitaBruta"].sum() == pytest.approx(
         analysis_result["financial_kpis"]["receita_bruta_total"], abs=0.01

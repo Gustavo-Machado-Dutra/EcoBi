@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import csv
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from typing import Any, Dict
 
 import pandas as pd
@@ -86,6 +88,64 @@ def test_corrupted_file_rejected_cleanly(client: TestClient, auth_headers: Dict[
     proj_dir = config.DATA_DIR / project_id
     if proj_dir.exists():
         assert len(list(proj_dir.glob("*"))) == 0
+
+
+def test_concurrent_same_filename_ingests_use_distinct_storage_paths(
+    client: TestClient,
+    auth_headers: Dict[str, str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_response = client.post(
+        "/api/projects",
+        json={"name": "QA Concurrent Uploads", "sector": "Varejo", "currency": "BRL"},
+        headers=auth_headers,
+    )
+    assert project_response.status_code == 201
+    project_id = project_response.json()["id"]
+
+    first_contents = b"amount,date\n10,2026-01-01\n"
+    second_contents = b"amount,date\n20,2026-02-01\n"
+    first_source = tmp_path / "first.csv"
+    second_source = tmp_path / "second.csv"
+    first_source.write_bytes(first_contents)
+    second_source.write_bytes(second_contents)
+
+    allocation_barrier = Barrier(2)
+    copy_barrier = Barrier(2)
+    original_open = Path.open
+    original_copy2 = data_quality.shutil.copy2
+
+    def wait_before_reservation(
+        path: Path, mode: str = "r", *args: Any, **kwargs: Any
+    ) -> Any:
+        if path.name == "parallel.csv" and mode == "xb":
+            allocation_barrier.wait(timeout=10)
+        return original_open(path, mode, *args, **kwargs)
+
+    def wait_before_copy(source: Path, destination: Path, *args: Any, **kwargs: Any) -> str:
+        copy_barrier.wait(timeout=10)
+        return original_copy2(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", wait_before_reservation)
+    monkeypatch.setattr(data_quality.shutil, "copy2", wait_before_copy)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(
+                data_quality.ingest_dataset_file,
+                project_id=project_id,
+                file_path=source,
+                filename="parallel.csv",
+                actor="QA",
+            )
+            for source in (first_source, second_source)
+        ]
+        datasets = [future.result(timeout=15) for future in futures]
+
+    storage_paths = [Path(dataset["storage_path"]) for dataset in datasets]
+    assert len({path.resolve() for path in storage_paths}) == 2
+    assert {path.read_bytes() for path in storage_paths} == {first_contents, second_contents}
+    assert len(database.list_datasets(project_id)) == 2
 
 
 # ============================================================================
@@ -241,7 +301,12 @@ def test_chunked_ingestion_large_csv_and_memory(tmp_path: Path) -> None:
     assert "receita_bruta" in cols_saved
 
 
-def test_canonical_mapping_save_and_reapply(client: TestClient, auth_headers: Dict[str, str], sample_paths: Dict[str, Path]) -> None:
+def test_canonical_mapping_save_and_reapply(
+    client: TestClient,
+    auth_headers: Dict[str, str],
+    sample_paths: Dict[str, Path],
+    tmp_path: Path,
+) -> None:
     """Verifica salvamento e reaplicação de mapeamento canônico de colunas (POST /api/projects/{id}/quality)."""
     proj_resp = client.post(
         "/api/projects",
@@ -250,14 +315,23 @@ def test_canonical_mapping_save_and_reapply(client: TestClient, auth_headers: Di
     )
     project_id = proj_resp.json()["id"]
 
-    # Upload do sample piloto
-    with open(sample_paths["piloto"], "rb") as f:
+    # Upload with a duplicated, non-canonical fiscal-period column.
+    sample_data = pd.read_csv(sample_paths["piloto"]).rename(columns={"periodo": "mes_fiscal"})
+    sample_data = pd.concat([sample_data, sample_data.iloc[[0]]], ignore_index=True)
+    mapped_sample = tmp_path / "mapped_period.csv"
+    sample_data.to_csv(mapped_sample, index=False)
+    with open(mapped_sample, "rb") as f:
         up_resp = client.post(
             f"/api/projects/{project_id}/datasets/upload",
-            files={"file": ("piloto.csv", f, "text/csv")},
+            files={"file": ("mapped_period.csv", f, "text/csv")},
             headers=auth_headers,
         )
     dataset_id = up_resp.json()["dataset"]["id"]
+    initial_quality = client.get(
+        f"/api/projects/{project_id}/quality?dataset_id={dataset_id}", headers=auth_headers
+    )
+    assert initial_quality.status_code == 200
+    assert initial_quality.json()["summary"]["duplicate_periods_count"] == 0
 
     # 1. Tentar salvar mapeamento com conceito canônico inválido deve falhar com HTTP 400
     resp_invalid_mapping = client.post(
@@ -273,7 +347,7 @@ def test_canonical_mapping_save_and_reapply(client: TestClient, auth_headers: Di
 
     # 2. Salvar mapeamento canônico válido
     valid_mapping = {
-        "periodo": "periodo",
+        "mes_fiscal": "periodo",
         "receita_bruta": "receita_bruta",
         "impostos_devolucoes": "impostos_devolucoes",
         "custo_fixo": "custo_fixo",
@@ -291,9 +365,17 @@ def test_canonical_mapping_save_and_reapply(client: TestClient, auth_headers: Di
     )
     assert resp_valid_mapping.status_code == 200
     report_data = resp_valid_mapping.json()
-    assert "mappings" in report_data
-    assert report_data["mappings"].get("receita_bruta") == "receita_bruta"
+    assert report_data["mappings"] == valid_mapping
+    assert report_data["summary"]["duplicate_periods_count"] == 1
 
-    # Confirma que está persistido no banco
+    # Confirma persistência e reaplica o mapeamento salvo em um novo perfilamento.
     db_mapping = database.get_dataset_mapping(dataset_id)
-    assert db_mapping.get("energia_kwh") == "energia_kwh"
+    assert db_mapping == valid_mapping
+    reprofiled = client.post(
+        f"/api/projects/{project_id}/quality",
+        json={"dataset_id": dataset_id},
+        headers=auth_headers,
+    )
+    assert reprofiled.status_code == 200
+    assert reprofiled.json()["mappings"] == valid_mapping
+    assert reprofiled.json()["summary"]["duplicate_periods_count"] == 1

@@ -10,13 +10,15 @@ Cobre os critérios de aceitação:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import sqlite3
 import subprocess
 import sys
 import tempfile
+from threading import Event
 import time
 from typing import Any, Dict
 
@@ -25,7 +27,7 @@ from fastapi.testclient import TestClient
 
 from backend import config, database, security
 from backend.main import app
-from backend.services import connectors, multiproject, scheduler
+from backend.services import connectors, data_quality, multiproject, scheduler
 from scripts import ecobi_launcher
 
 
@@ -124,6 +126,7 @@ def test_c22_scheduled_connector_sync_and_concurrency_lock(
     client: TestClient,
     auth_headers: Dict[str, str],
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Valida rotina agendada de sincronização incremental de conectores e trava de concorrência (C22)."""
     # 1. Cria projeto e banco SQLite externo com dados incrementais
@@ -193,13 +196,50 @@ def test_c22_scheduled_connector_sync_and_concurrency_lock(
     run_data = run_resp.json()
     assert run_data["status"] == "SUCCESS"
     assert run_data["records_processed"] == 2
+    initial_dataset = run_data["summary"]["sync_result"]["dataset"]
+    initial_sample = data_quality.get_dataset_sample(initial_dataset["id"], mask_pii=False)
+    assert initial_sample["total_rows"] == 2
+    assert [row["receita_bruta"] for row in initial_sample["rows"]] == [100000.0, 110000.0]
 
-    # 5. Testa trava de concorrência (Conector Bloqueado)
+    # 5. Keep one connector execution in flight and verify a concurrent run is skipped.
+    sync_started = Event()
+    release_sync = Event()
+    sync_calls = []
+    original_sync_connector = connectors.sync_connector
+
+    def blocking_sync_connector(*args, **kwargs):
+        sync_calls.append(1)
+        sync_started.set()
+        if not release_sync.wait(timeout=10):
+            raise TimeoutError("Timed out waiting to release the controlled connector sync.")
+        return original_sync_connector(*args, **kwargs)
+
+    monkeypatch.setattr(connectors, "sync_connector", blocking_sync_connector)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_run = executor.submit(
+            lambda: asyncio.run(scheduler.execute_scheduled_job(job_id, triggered_by="test"))
+        )
+        assert sync_started.wait(timeout=5)
+        try:
+            concurrent_run = executor.submit(
+                lambda: asyncio.run(scheduler.execute_scheduled_job(job_id, triggered_by="test"))
+            )
+            concurrent_result = concurrent_run.result(timeout=5)
+        finally:
+            release_sync.set()
+        first_result = first_run.result(timeout=10)
+
+    assert concurrent_result["status"] == "SKIPPED_LOCKED"
+    assert first_result["status"] in ("SUCCESS", "NO_CHANGES")
+    assert len(sync_calls) == 1
+
     scheduler._active_connector_locks.add(connector_id)
-    run_locked = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
-    scheduler._active_connector_locks.discard(connector_id)
-    assert run_locked.status_code == 200
-    assert run_locked.json()["status"] == "SKIPPED_LOCKED"
+    try:
+        connector_locked = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
+    finally:
+        scheduler._active_connector_locks.discard(connector_id)
+    assert connector_locked.status_code == 200
+    assert connector_locked.json()["status"] == "SKIPPED_LOCKED"
 
     # 6. Insere novos registros na fonte externa e sincroniza incrementalmente
     conn_ext = sqlite3.connect(str(ext_db_path))
@@ -209,7 +249,21 @@ def test_c22_scheduled_connector_sync_and_concurrency_lock(
 
     run2_resp = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
     assert run2_resp.status_code == 200
-    assert run2_resp.json()["records_processed"] == 1
+    run2_data = run2_resp.json()
+    assert run2_data["records_processed"] == 1
+    incremental_dataset = run2_data["summary"]["sync_result"]["dataset"]
+    incremental_sample = data_quality.get_dataset_sample(incremental_dataset["id"], mask_pii=False)
+    assert incremental_sample["total_rows"] == 1
+    assert incremental_sample["rows"] == [
+        {
+            "id": 3,
+            "periodo": "2025-03",
+            "receita_bruta": 120000.0,
+            "receita_liquida": 99000.0,
+            "combustivel_litros": 550.0,
+            "energia_kwh": 1300.0,
+        }
+    ]
 
     # 7. Testa pausa (toggle) do job
     toggle_resp = client.post(
@@ -224,7 +278,11 @@ def test_c22_scheduled_connector_sync_and_concurrency_lock(
     logs_resp = client.get(f"/api/scheduler/runs?job_id={job_id}", headers=auth_headers)
     assert logs_resp.status_code == 200
     runs = logs_resp.json()["runs"]
-    assert len(runs) >= 3
+    job_runs = [run for run in runs if run["job_id"] == job_id]
+    assert len(job_runs) >= 4
+    assert {run["status"] for run in job_runs} >= {"SUCCESS", "SKIPPED_LOCKED"}
+    assert any(run["records_processed"] == 2 for run in job_runs)
+    assert any(run["records_processed"] == 1 for run in job_runs)
 
 
 # ============================================================================
@@ -234,6 +292,7 @@ def test_c22_scheduled_connector_sync_and_concurrency_lock(
 def test_c23_scheduled_hmac_backup_retention_and_restore_trial(
     client: TestClient,
     auth_headers: Dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Valida backup online automático agendado, retenção e teste de restauração em temp DB (C23)."""
     # 1. Cadastra job agendado de backup online com cota máxima de 2 cópias
@@ -252,6 +311,35 @@ def test_c23_scheduled_hmac_backup_retention_and_restore_trial(
     assert job_resp.status_code == 201
     job_id = job_resp.json()["id"]
 
+    restore_temp_paths = []
+    restore_database_states = []
+    original_named_temporary_file = scheduler.tempfile.NamedTemporaryFile
+    original_trial_restore = scheduler.verify_and_restore_backup_trial
+
+    def capture_operational_state():
+        uri = f"file:{config.DB_PATH.resolve().as_posix()}?mode=ro"
+        with sqlite3.connect(uri, uri=True) as connection:
+            return {
+                table: tuple(connection.execute(f"SELECT * FROM {table} ORDER BY id").fetchall())
+                for table in ("projects", "datasets", "analyses", "audit_logs")
+            }
+
+    def track_trial_restore(backup_path):
+        before = capture_operational_state()
+        result = original_trial_restore(backup_path)
+        after = capture_operational_state()
+        restore_database_states.append((before, after))
+        return result
+
+    monkeypatch.setattr(scheduler, "verify_and_restore_backup_trial", track_trial_restore)
+
+    def track_restore_temp_file(*args, **kwargs):
+        temporary_file = original_named_temporary_file(*args, **kwargs)
+        restore_temp_paths.append(Path(temporary_file.name))
+        return temporary_file
+
+    monkeypatch.setattr(scheduler.tempfile, "NamedTemporaryFile", track_restore_temp_file)
+
     # 2. Executa o primeiro backup agendado
     run1 = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
     assert run1.status_code == 200
@@ -259,23 +347,56 @@ def test_c23_scheduled_hmac_backup_retention_and_restore_trial(
     assert data1["status"] == "SUCCESS"
     assert data1["summary"]["trial_restore"]["trial_restore_ok"] is True
     assert data1["summary"]["trial_restore"]["integrity_check"] == "ok"
+    assert len(restore_temp_paths) == 1
+    assert restore_temp_paths[0].resolve() != config.DB_PATH.resolve()
+    assert not restore_temp_paths[0].exists()
+    assert restore_database_states and all(
+        before == after for before, after in restore_database_states
+    )
+    first_backup = data1["summary"]["backup"]
+    first_backup_path = Path(first_backup["backup_path"])
+    assert first_backup_path.is_file()
+    assert any(
+        backup["id"] == first_backup["id"]
+        for backup in database.list_database_backups()
+    )
 
-    # 3. Executa o segundo e terceiro backup para testar a política de retenção
+    # 3. Executa um segundo backup e marca o primeiro como expirado para exercitar retenção por idade.
     run2 = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
     assert run2.status_code == 200
     assert run2.json()["status"] == "SUCCESS"
 
+    expired_backup_id = first_backup["id"]
+    expired_created_at = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    with database.get_db_context() as conn:
+        with database.transaction(conn):
+            conn.execute(
+                "UPDATE system_backups SET created_at = ? WHERE id = ?;",
+                (expired_created_at, expired_backup_id),
+            )
+
     run3 = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
     assert run3.status_code == 200
     assert run3.json()["status"] == "SUCCESS"
-    # O terceiro backup deve expurgar cópias excedentes para respeitar max_backups=2
-    assert run3.json()["summary"]["retention"]["purged_backups_count"] >= 1
+    assert expired_backup_id in run3.json()["summary"]["retention"]["purged_backup_ids"]
+    assert not first_backup_path.exists()
+    assert all(
+        backup["id"] != expired_backup_id
+        for backup in database.list_database_backups()
+    )
 
-    # 4. Lista backups existentes e valida integridade via /verify
+    # 4. Um quarto backup excede a cota e deve expurgar a cópia mantida mais antiga.
+    run4 = client.post(f"/api/scheduler/jobs/{job_id}/run-now", headers=auth_headers)
+    assert run4.status_code == 200
+    assert run4.json()["status"] == "SUCCESS"
+    assert run4.json()["summary"]["retention"]["purged_backups_count"] >= 1
+
+    # 5. Lista backups existentes e valida integridade via /verify
     list_bkp = client.get("/api/system/backups", headers=auth_headers)
     assert list_bkp.status_code == 200
     backups = list_bkp.json()["backups"]
     assert len(backups) <= 2
+    assert all(backup["id"] != expired_backup_id for backup in backups)
 
     # Verifica integridade HMAC do backup mais recente mantido
     ver_resp = client.post(f"/api/system/backups/{backups[0]['id']}/verify", headers=auth_headers)
