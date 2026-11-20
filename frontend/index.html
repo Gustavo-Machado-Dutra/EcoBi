@@ -24,7 +24,7 @@
     <!-- ====================================================================
          SIDEBAR DE NAVEGAÇÃO (SUSTAINABLE TECH #183A32)
          ==================================================================== -->
-    <aside id="app-sidebar" class="sidebar" aria-label="Menu Lateral de Módulos EcoBI">
+    <aside id="app-sidebar" class="sidebar" aria-label="Menu Lateral de Módulos EcoBI" data-tour="sidebar">
       <div class="sidebar-brand">
         <button type="button" id="btn-toggle-sidebar" class="brand-logo brand-logo-toggle" aria-label="Recolher menu lateral" aria-controls="app-sidebar" aria-expanded="true" title="Recolher menu">
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -150,6 +150,7 @@
       </nav>
 
       <div class="sidebar-footer">
+        <button type="button" id="btn-open-onboarding-sidebar" class="btn btn-ghost btn-sm" aria-label="Abrir ajuda e tutorial" title="Ajuda e tutorial">Ajuda e tutorial</button>
         <div class="privacy-seal">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -165,7 +166,7 @@
          ==================================================================== -->
     <div class="workspace-wrapper">
       <!-- TOPBAR OPERACIONAL -->
-      <header class="topbar" role="banner">
+      <header class="topbar" role="banner" data-tour="topbar">
         <div class="topbar-left">
           <button type="button" id="btn-open-sidebar" class="icon-btn mobile-menu-btn" aria-label="Abrir menu lateral" aria-controls="app-sidebar" aria-expanded="false">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -175,17 +176,18 @@
             </svg>
           </button>
 
-          <span id="topbar-page-title" class="topbar-page-title" aria-live="polite">Visão Executiva</span>
+          <span id="topbar-page-title" class="topbar-page-title" data-tour="page-title" aria-live="polite">Visão Executiva</span>
+          <button type="button" id="btn-open-onboarding" class="icon-btn" aria-label="Ajuda e tutorial" title="Ajuda e tutorial">?</button>
           <div class="topbar-selectors">
             <div class="selector-group">
               <label for="global-project-select" class="selector-label">Projeto:</label>
-              <select id="global-project-select" class="topbar-select" aria-label="Selecionar projeto corporativo ativo">
+              <select id="global-project-select" class="topbar-select" data-tour="project-selector" aria-label="Selecionar projeto corporativo ativo">
                 <option value="">Carregando projetos...</option>
               </select>
             </div>
             <div class="selector-group">
               <label for="global-dataset-select" class="selector-label">Dataset:</label>
-              <select id="global-dataset-select" class="topbar-select" aria-label="Selecionar dataset ativo do projeto">
+              <select id="global-dataset-select" class="topbar-select" data-tour="dataset-selector" aria-label="Selecionar dataset ativo do projeto">
                 <option value="">Nenhum dataset</option>
               </select>
             </div>
@@ -215,7 +217,7 @@
             <svg class="theme-icon-dark" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"></path></svg>
           </button>
           <!-- Indicador de Orçamento de Memória RAM (<= 8192 MB) -->
-          <div class="telemetry-pill" id="topbar-ram-pill" title="Consumo de Memória RAM do EcoBI (Limite: 8192 MB via psutil)">
+          <div class="telemetry-pill" id="topbar-ram-pill" data-tour="ram-indicator" title="Consumo de Memória RAM do EcoBI (Limite: 8192 MB via psutil)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
               <rect x="9" y="9" width="6" height="6"></rect>
@@ -261,7 +263,7 @@
         <!-- ================================================================
              TELA 1: DASHBOARD INICIAL (view-dashboard)
              ================================================================ -->
-        <section id="view-dashboard" class="view-section active" aria-labelledby="heading-dashboard">
+        <section id="view-dashboard" class="view-section active" data-tour="module-view-dashboard" aria-labelledby="heading-dashboard">
           <div class="view-header">
             <div>
               <span class="eyebrow">VISÃO EXECUTIVA INTEGRADA · SUSTAINABLE TECH</span>
@@ -564,7 +566,7 @@
         <!-- ================================================================
              TELA 2: GERENCIAMENTO DE PROJETOS (view-projects)
              ================================================================ -->
-        <section id="view-projects" class="view-section" aria-labelledby="heading-projects" hidden>
+        <section id="view-projects" class="view-section" data-tour="module-view-projects" aria-labelledby="heading-projects" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">ISOLAMENTO LÓGICO &amp; CICLO DE VIDA LGPD</span>
@@ -667,7 +669,7 @@
         <!-- ================================================================
              TELA 3: IMPORTAÇÃO DE DADOS (view-import)
              ================================================================ -->
-        <section id="view-import" class="view-section" aria-labelledby="heading-import" hidden>
+        <section id="view-import" class="view-section" data-tour="module-view-import" aria-labelledby="heading-import" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">INGESTÃO TABULAR COM CHUNKING &amp; PROTEÇÃO PII</span>
@@ -814,7 +816,7 @@
         <!-- ================================================================
              TELA 4: QUALIDADE DOS DADOS (view-quality)
              ================================================================ -->
-        <section id="view-quality" class="view-section" aria-labelledby="heading-quality" hidden>
+        <section id="view-quality" class="view-section" data-tour="module-view-quality" aria-labelledby="heading-quality" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">PERFILAMENTO ESTATÍSTICO &amp; SCHEMA CANÔNICO</span>
@@ -937,7 +939,7 @@
         <!-- ================================================================
              TELA 5: SOLICITAÇÃO DE ANÁLISES POR LINGUAGEM NATURAL & ESG (view-assistant)
              ================================================================ -->
-        <section id="view-assistant" class="view-section" aria-labelledby="heading-assistant" hidden>
+        <section id="view-assistant" class="view-section" data-tour="module-view-assistant" aria-labelledby="heading-assistant" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">CÁLCULO DETERMINÍSTICO PYTHON + ORQUESTRAÇÃO OLLAMA (6 TOOLS)</span>
@@ -1142,7 +1144,7 @@
         <!-- ================================================================
              TELA 6: RESULTADOS PREDITIVOS (view-predictive)
              ================================================================ -->
-        <section id="view-predictive" class="view-section" aria-labelledby="heading-predictive" hidden>
+        <section id="view-predictive" class="view-section" data-tour="module-view-predictive" aria-labelledby="heading-predictive" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">SCIKIT-LEARN · SPLIT CRONOLÓGICO &amp; BACKTESTING MULTI-JANELAS</span>
@@ -1312,7 +1314,7 @@
         <!-- ================================================================
              TELA 7: SIMULADOR FINANCEIRO E SOCIOAMBIENTAL (view-simulator)
              ================================================================ -->
-        <section id="view-simulator" class="view-section" aria-labelledby="heading-simulator" hidden>
+        <section id="view-simulator" class="view-section" data-tour="module-view-simulator" aria-labelledby="heading-simulator" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">ANÁLISE DE SENSIBILIDADE CONDICIONAL (WHAT-IF)</span>
@@ -1513,7 +1515,7 @@
         <!-- ================================================================
              TELA 8: CENTRAL DE VALIDAÇÃO (view-validation)
              ================================================================ -->
-        <section id="view-validation" class="view-section" aria-labelledby="heading-validation" hidden>
+        <section id="view-validation" class="view-section" data-tour="module-view-validation" aria-labelledby="heading-validation" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">MOTOR DE GOVERNANÇA DETERMINÍSTICO · PORTÃO DE PUBLICAÇÃO</span>
@@ -1571,7 +1573,7 @@
         <!-- ================================================================
              TELA 9: RELATÓRIOS POWER BI (view-powerbi)
              ================================================================ -->
-        <section id="view-powerbi" class="view-section" aria-labelledby="heading-powerbi" hidden>
+        <section id="view-powerbi" class="view-section" data-tour="module-view-powerbi" aria-labelledby="heading-powerbi" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">EXPORTAÇÃO NATIVA PBIP / PBIR · MODELO TABULAR &amp; MEDIDAS DAX</span>
@@ -1672,7 +1674,7 @@
         <!-- ================================================================
              TELA 10: HISTÓRICO E AUDITORIA (view-audit)
              ================================================================ -->
-        <section id="view-audit" class="view-section" aria-labelledby="heading-audit" hidden>
+        <section id="view-audit" class="view-section" data-tour="module-view-audit" aria-labelledby="heading-audit" hidden>
           <div class="view-header">
             <div>
               <span class="eyebrow">RASTREABILIDADE IMUTÁVEL · CONFIGURAÇÃO LLM &amp; EXPURGO LGPD</span>
@@ -1818,7 +1820,7 @@
         <!-- ====================================================================
              11. DASHBOARD COMPARATIVO MULTIPROJETO (FASE 4: ECOBI-22)
              ==================================================================== -->
-        <section id="view-multiproject" class="view-section" aria-labelledby="heading-multiproject" hidden>
+        <section id="view-multiproject" class="view-section" data-tour="module-view-multiproject" aria-labelledby="heading-multiproject" hidden>
           <div class="view-header">
             <div>
               <h1 id="heading-multiproject" class="view-title">Dashboard Corporativo Multiprojeto</h1>
@@ -1899,7 +1901,7 @@
         <!-- ====================================================================
              12. AUTOMAÇÃO OPERACIONAL & AGENDADOR (FASE 4: ECOBI-21)
              ==================================================================== -->
-        <section id="view-scheduler" class="view-section" aria-labelledby="heading-scheduler" hidden>
+        <section id="view-scheduler" class="view-section" data-tour="module-view-scheduler" aria-labelledby="heading-scheduler" hidden>
           <div class="view-header">
             <div>
               <h1 id="heading-scheduler" class="view-title">Automa&ccedil;&otilde;es</h1>
@@ -2071,6 +2073,7 @@
     </div>
   </div>
 
+  <script src="/static/onboarding.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>

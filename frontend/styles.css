@@ -3290,3 +3290,26 @@ html[data-theme=dark] .global-period-filter input { border-color: var(--color-in
 @media (min-width: 861px) and (max-width: 1280px) { .topbar-left { display: flex; } .topbar-selectors { display: flex; } .topbar-right { display: grid; grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 860px) { .sidebar-brand { justify-content: flex-start; padding-inline: 18px; } .sidebar-brand-name { display: inline; } #view-scheduler .dashboard-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 520px) { .sidebar-brand { min-height: 64px; } #view-scheduler .card { padding: 16px; } #view-scheduler .form-grid { grid-template-columns: minmax(0, 1fr); } #view-scheduler .form-grid > .form-group, #view-scheduler .form-grid > .form-actions, #view-scheduler .form-grid > .inline-feedback { grid-column: 1; } }
+/* Accessible, responsive onboarding tour */
+.eco-tour-spotlight { position: fixed; z-index: 10050; border: 2px solid var(--color-mint); border-radius: var(--radius-md); box-shadow: 0 0 0 9999px rgba(8, 18, 14, .72); pointer-events: none; }
+.eco-tour-panel, .eco-tour-intro, .eco-tour-chooser { position: fixed; z-index: 10051; width: min(420px, calc(100vw - 24px)); padding: var(--space-5); color: var(--text-primary); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: 0 0 0 9999px rgba(8, 18, 14, .48), var(--shadow-modal); }
+.eco-tour-panel { max-height: calc(100vh - 24px); overflow-y: auto; }
+.eco-tour-panel::before { position: absolute; left: 24px; width: 0; height: 0; border: 8px solid transparent; content: ""; }
+.eco-tour-panel[data-placement="below"]::before { top: -16px; border-bottom-color: var(--color-mint); }
+.eco-tour-panel[data-placement="above"]::before { bottom: -16px; border-top-color: var(--color-mint); }
+.eco-tour-panel[data-placement="center"]::before { display: none; }
+.eco-tour-intro, .eco-tour-chooser { inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 10052; }
+.eco-tour-panel h2, .eco-tour-intro h2, .eco-tour-chooser h2 { margin: var(--space-2) 0; font-size: 1.15rem; }
+.eco-tour-panel p, .eco-tour-intro p, .eco-tour-chooser p { color: var(--text-secondary); }
+.eco-tour-progress { color: var(--color-natural); font-size: .8rem; font-weight: 700; }
+.eco-tour-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+.eco-tour-actions button { min-height: 40px; padding: 0 var(--space-3); color: var(--text-primary); background: var(--surface-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
+.eco-tour-actions button[data-action="next"], .eco-tour-actions button[data-action="start"] { color: var(--text-on-dark); background: var(--color-natural); border-color: var(--color-natural); font-weight: 700; }
+.eco-tour-actions button:disabled { opacity: .55; cursor: not-allowed; }
+.eco-tour-actions button:focus-visible { outline: 3px solid var(--color-mint); outline-offset: 2px; }
+[data-theme="dark"] .eco-tour-panel, [data-theme="dark"] .eco-tour-intro, [data-theme="dark"] .eco-tour-chooser { color: var(--color-text-primary); background: var(--color-card); border-color: var(--color-border); }
+[data-theme="dark"] .eco-tour-panel p, [data-theme="dark"] .eco-tour-intro p, [data-theme="dark"] .eco-tour-chooser p { color: var(--color-text-secondary); }
+[data-theme="dark"] .eco-tour-actions button { color: var(--color-text-primary); background: var(--color-surface); border-color: var(--color-border); }
+[data-theme="dark"] .eco-tour-actions button[data-action="next"], [data-theme="dark"] .eco-tour-actions button[data-action="start"] { color: #132110; background: var(--color-mint); border-color: var(--color-mint); }
+@media (max-width: 600px) { .eco-tour-panel, .eco-tour-intro, .eco-tour-chooser { padding: var(--space-4); } .eco-tour-actions { justify-content: stretch; } .eco-tour-actions button { flex: 1 1 42%; } }
+@media (prefers-reduced-motion: reduce) { .eco-tour-spotlight { scroll-behavior: auto; } }

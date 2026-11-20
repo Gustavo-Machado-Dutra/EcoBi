@@ -352,6 +352,7 @@
     });
 
     state.currentView = viewId;
+    window.EcoBIOnboarding?.setCurrentView(viewId);
     updateTopbarPageTitle(viewId);
     updateWorkflowStates();
 
@@ -3852,6 +3853,7 @@
     updateWorkflowStates();
     await ensureLocalSession(true);
     await Promise.all([loadMemoryStatus(), loadModelSettings(), loadProjects()]);
+    window.EcoBIOnboarding?.init({ switchView, currentView: state.currentView });
   }
 
   if (document.readyState === "loading") {
