@@ -107,7 +107,9 @@ def test_c21_windows_launcher_and_bootstrap_lifecycle(tmp_path: Path):
     assert len(applied_versions) == 6
     assert 6 in applied_versions
 
-    # 3. Executa o launcher via subprocesso com a flag --check-only
+    # 3. Check-only validates directories without touching the operational database.
+    runtime_db = root_dir / "data" / "runtime" / "ecobi.db"
+    db_before = (runtime_db.stat().st_mtime_ns, runtime_db.stat().st_size) if runtime_db.exists() else None
     proc = subprocess.run(
         [sys.executable, str(launcher_file), "--check-only"],
         capture_output=True,
@@ -117,8 +119,8 @@ def test_c21_windows_launcher_and_bootstrap_lifecycle(tmp_path: Path):
     )
     assert proc.returncode == 0
     assert "Modo --check-only concluído com êxito." in proc.stdout
-
-
+    db_after = (runtime_db.stat().st_mtime_ns, runtime_db.stat().st_size) if runtime_db.exists() else None
+    assert db_after == db_before
 # ============================================================================
 # C22: Agendamento de Sincronização Incremental de Conectores & Travas
 # ============================================================================

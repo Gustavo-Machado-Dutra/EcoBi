@@ -62,7 +62,7 @@ def setup_launcher_logging(log_dir: Path) -> logging.Logger:
     return logger
 
 
-def ensure_environment(base_dir: Path, logger: logging.Logger) -> Dict[str, Path]:
+def ensure_environment(base_dir: Path, logger: logging.Logger, *, initialize_database: bool = True) -> Dict[str, Path]:
     """Garante que a estrutura de diretórios e arquivos de persistência estejam prontos."""
     data_dir = (base_dir / "data").resolve()
     runtime_dir = data_dir / "runtime"
@@ -77,10 +77,10 @@ def ensure_environment(base_dir: Path, logger: logging.Logger) -> Dict[str, Path
     os.environ["ECOBI_DB_PATH"] = str(db_path)
 
     logger.info("Estrutura de diretórios locais validada em: %s", data_dir)
-    logger.info("Inicializando banco de dados local SQLite (WAL) e aplicando migrations...")
-    database.init_db(db_path)
-    logger.info("Banco de dados pronto e migrations aplicadas com sucesso.")
-
+    if initialize_database:
+        logger.info("Inicializando banco de dados local SQLite (WAL) e aplicando migrations...")
+        database.init_db(db_path)
+        logger.info("Banco de dados pronto e migrations aplicadas com sucesso.")
     return {
         "data_dir": data_dir,
         "runtime_dir": runtime_dir,
@@ -191,7 +191,7 @@ def main() -> None:
     logger.info(" Versão: 4.0.0 (Release Piloto Windows)")
     logger.info("=======================================================")
 
-    env_paths = ensure_environment(base_dir, logger)
+    env_paths = ensure_environment(base_dir, logger, initialize_database=not args.check_only)
     prepare_local_ai_runtime(logger, check_only=args.check_only)
     check_local_ai_runtime(logger)
 
