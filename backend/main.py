@@ -213,7 +213,7 @@ def get_current_session(
         return session
 
     # Compatibilidade adicional com tokens de bootstrap/users da tabela users
-    user = database.verify_user_token(raw_token)
+    user = database.verify_user_token_by_token(raw_token)
     if user:
         return {
             "id": f"user_tok_{user['id']}",

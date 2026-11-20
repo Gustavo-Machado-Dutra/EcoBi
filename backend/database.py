@@ -889,6 +889,29 @@ def verify_user_token(
     return None
 
 
+def verify_user_token_by_token(
+    token: str,
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[Dict[str, Any]]:
+    """Localiza e valida um token de API de usuário sem conhecer o username."""
+    if not token or not isinstance(token, str):
+        return None
+
+    query = "SELECT * FROM users ORDER BY created_at ASC;"
+
+    def _execute(target_conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        for row in target_conn.execute(query).fetchall():
+            user = _row_to_dict(row)
+            if user and verify_api_token(token, user["api_token_hash"]):
+                return user
+        return None
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
 def list_users(conn: Optional[sqlite3.Connection] = None) -> List[Dict[str, Any]]:
     """Lista todos os usuários locais cadastrados."""
     query = "SELECT id, username, role, created_at FROM users ORDER BY created_at ASC;"

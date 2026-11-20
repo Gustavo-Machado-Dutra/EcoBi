@@ -344,3 +344,50 @@ def test_memory_budget_psutil_and_9b_gate(client: TestClient, auth_headers: Dict
     )
     assert resp_4b.status_code == 200
     assert resp_4b.json()["active_model"] == config.DEFAULT_MODEL
+
+def test_legacy_user_token_authenticates_protected_route_and_rejects_invalid_tokens(
+    client: TestClient,
+) -> None:
+    created_user = database.create_user_account(username="token-operator", role="analyst")
+    valid_headers = {"Authorization": f"Bearer {created_user['api_token']}"}
+
+    valid_response = client.get("/api/auth/session", headers=valid_headers)
+    assert valid_response.status_code == 200
+    assert valid_response.json()["operator_name"] == "token-operator"
+    assert valid_response.json()["role"] == "analyst"
+
+    invalid_response = client.get(
+        "/api/auth/session",
+        headers={"Authorization": "Bearer ecobi_analyst_invalid-token"},
+    )
+    assert invalid_response.status_code == 401
+
+
+def test_session_expiration_and_revocation_remain_enforced(client: TestClient) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    expired_token = "expired-session-token"
+    database.create_session(
+        operator_name="Expired Operator",
+        operator_email="expired@ecobi.local",
+        lgpd_consent=True,
+        token=expired_token,
+        expires_at=(datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+    )
+    expired_response = client.get(
+        "/api/auth/session", headers={"Authorization": f"Bearer {expired_token}"}
+    )
+    assert expired_response.status_code == 401
+
+    revoked_token = "revoked-session-token"
+    database.create_session(
+        operator_name="Revoked Operator",
+        operator_email="revoked@ecobi.local",
+        lgpd_consent=True,
+        token=revoked_token,
+    )
+    assert database.deactivate_session(revoked_token) is True
+    revoked_response = client.get(
+        "/api/auth/session", headers={"Authorization": f"Bearer {revoked_token}"}
+    )
+    assert revoked_response.status_code == 401
