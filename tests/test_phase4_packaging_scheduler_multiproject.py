@@ -20,6 +20,7 @@ import sys
 import tempfile
 from threading import Event
 import time
+from unittest.mock import Mock
 from typing import Any, Dict
 
 import pytest
@@ -574,3 +575,55 @@ def test_scheduled_quality_audit_profiles_dataset(client: TestClient, auth_heade
     assert results[0]["summary"]["datasets_audited_count"] == 1
     assert results[0]["summary"]["audited_datasets"][0]["dataset_id"] == dataset_id
     assert database.get_latest_quality_report(dataset_id)["id"] != initial_report["id"]
+
+def test_c25_local_ollama_readiness_accepts_only_installed_default_model(monkeypatch):
+    monkeypatch.setattr(config, "BLOCK_EXTERNAL_AI", True)
+    monkeypatch.setattr(config, "OLLAMA_URL", "http://127.0.0.1:11434")
+    response = Mock(status_code=200)
+    response.json.return_value = {"models": [{"name": config.DEFAULT_MODEL}]}
+    request = Mock(return_value=response)
+    monkeypatch.setattr("httpx.get", request)
+
+    logger = Mock()
+    assert ecobi_launcher.check_local_ai_runtime(logger) is True
+    request.assert_called_once_with(
+        "http://127.0.0.1:11434/api/tags",
+        timeout=2.0,
+        follow_redirects=False,
+        trust_env=False,
+    )
+
+
+def test_c25_local_ollama_readiness_uses_fallback_when_model_is_missing(monkeypatch):
+    monkeypatch.setattr(config, "BLOCK_EXTERNAL_AI", True)
+    monkeypatch.setattr(config, "OLLAMA_URL", "http://127.0.0.1:11434")
+    response = Mock(status_code=200)
+    response.json.return_value = {"models": [{"name": "unconfigured-model"}]}
+    monkeypatch.setattr("httpx.get", Mock(return_value=response))
+
+    logger = Mock()
+    assert ecobi_launcher.check_local_ai_runtime(logger) is False
+    assert any("deterministic fallback" in call.args[0] for call in logger.warning.call_args_list)
+
+
+def test_c25_local_ollama_readiness_rejects_unapproved_destination(monkeypatch):
+    monkeypatch.setattr(config, "BLOCK_EXTERNAL_AI", True)
+    monkeypatch.setattr(config, "OLLAMA_URL", "http://0.0.0.0:11434")
+    request = Mock()
+    monkeypatch.setattr("httpx.get", request)
+
+    assert ecobi_launcher.check_local_ai_runtime(Mock()) is False
+    request.assert_not_called()
+
+def test_c25_local_ollama_connection_failure_uses_fallback(monkeypatch):
+    monkeypatch.setattr(config, "BLOCK_EXTERNAL_AI", True)
+    monkeypatch.setattr(config, "OLLAMA_URL", "http://127.0.0.1:11434")
+    monkeypatch.setattr("httpx.get", Mock(side_effect=OSError("offline")))
+
+    logger = Mock()
+    assert ecobi_launcher.check_local_ai_runtime(logger) is False
+    assert any("deterministic fallback" in call.args[0] for call in logger.warning.call_args_list)
+
+
+def test_c25_external_ai_is_blocked_by_default():
+    assert config.BLOCK_EXTERNAL_AI is True
