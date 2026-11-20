@@ -29,14 +29,29 @@ Write-Host " Raiz do Projeto: $RootDir" -ForegroundColor Gray
 Write-Host "=======================================================" -ForegroundColor DarkGreen
 
 $VenvPython = "$RootDir\.venv\Scripts\python.exe"
-if (Test-Path $VenvPython) {
-    $PythonExe = $VenvPython
-} else {
-    $PythonExe = "python"
+if (-not (Test-Path $VenvPython)) {
+    $PythonCommand = Get-Command py -ErrorAction SilentlyContinue
+    if ($PythonCommand) {
+        & $PythonCommand.Source -3.11 -m venv "$RootDir\.venv"
+    } else {
+        $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $PythonCommand) { throw "Python 3.11+ is required to prepare the local .venv. Install Python for this Windows user and retry." }
+        $PythonVersion = & $PythonCommand.Source --version
+        if ($LASTEXITCODE -ne 0 -or $PythonVersion -notmatch 'Python (\d+\.\d+)' -or [version]$Matches[1] -lt [version]'3.11') { throw "Python 3.11+ is required to prepare the local .venv." }
+        & $PythonCommand.Source -m venv "$RootDir\.venv"
+    }
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $VenvPython)) { throw "Unable to create the project-local Python environment." }
+}
+
+$PythonExe = $VenvPython
+& $PythonExe -c "import fastapi, uvicorn, pandas, numpy, sklearn, openpyxl, multipart, psutil" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Installing declared dependencies into the project-local .venv..." -ForegroundColor Yellow
+    & $PythonExe -m pip install --disable-pip-version-check --no-input -r "$RootDir\requirements.txt"
+    if ($LASTEXITCODE -ne 0) { throw "Python dependencies could not be prepared in .venv; no global packages were changed." }
 }
 
 Write-Host "Runtime Python detectado: $PythonExe" -ForegroundColor Cyan
-
 $ArgsList = @("scripts\ecobi_launcher.py", "--host", "127.0.0.1", "--port", $Port)
 if ($NoBrowser) { $ArgsList += "--no-browser" }
 if ($CheckOnly) { $ArgsList += "--check-only" }

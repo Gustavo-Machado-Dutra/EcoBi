@@ -15,6 +15,7 @@ root_dir = Path.cwd().resolve()
 added_files = [
     (str(root_dir / "frontend"), "frontend"),
     (str(root_dir / "samples"), "samples"),
+    (str(root_dir / "scripts" / "ollama_bootstrap.ps1"), "scripts"),
 ]
 
 hidden_imports = [

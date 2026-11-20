@@ -18,6 +18,8 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import signal
+import shutil
+import subprocess
 import sys
 import time
 import urllib.request
@@ -106,6 +108,68 @@ def wait_for_health_check(url: str, timeout_sec: float = 30.0, logger: Optional[
     return False
 
 
+
+def prepare_local_ai_runtime(logger: logging.Logger, check_only: bool = False) -> None:
+    """Prepares only the signed per-user Ollama runtime and configured local model on Windows."""
+    if sys.platform != "win32":
+        return
+
+    powershell = shutil.which("powershell.exe")
+    helper_dir = BUNDLE_DIR / "scripts" if getattr(sys, "frozen", False) else ROOT_DIR / "scripts"
+    helper = helper_dir / "ollama_bootstrap.ps1"
+    if not powershell or not helper.is_file():
+        logger.warning("Windows Ollama bootstrap is unavailable; deterministic fallback remains enabled.")
+        return
+
+    command = [powershell, "-NoLogo", "-NoProfile", "-File", str(helper), "-ModelName", config.DEFAULT_MODEL]
+    if check_only:
+        command.append("-CheckOnly")
+    try:
+        result = subprocess.run(command, cwd=str(ROOT_DIR), check=False)
+    except OSError as exc:
+        logger.warning("Windows Ollama bootstrap could not start (%s); deterministic fallback remains enabled.", exc)
+        return
+    if result.returncode:
+        logger.warning("Windows Ollama bootstrap exited with code %s; deterministic fallback remains enabled.", result.returncode)
+
+
+def check_local_ai_runtime(logger: logging.Logger) -> bool:
+    """Checks the approved local Ollama endpoint without installing resources."""
+    if not config.BLOCK_EXTERNAL_AI:
+        logger.error("BLOCK_EXTERNAL_AI must remain enabled; local AI is disabled.")
+        return False
+
+    from backend.security import verify_external_url_allowed
+
+    ollama_url = config.OLLAMA_URL.rstrip("/")
+    if not verify_external_url_allowed(ollama_url):
+        logger.warning("Configured Ollama destination is not the approved local endpoint; using deterministic fallback.")
+        return False
+
+    try:
+        import httpx
+
+        response = httpx.get(
+            f"{ollama_url}/api/tags",
+            timeout=2.0,
+            follow_redirects=False,
+            trust_env=False,
+        )
+        response.raise_for_status()
+        models = response.json().get("models", [])
+    except Exception as exc:
+        logger.warning("Local Ollama is unavailable (%s); EcoBI will use its deterministic fallback.", exc)
+        return False
+
+    available = {item.get("name") for item in models if isinstance(item, dict)}
+    if config.DEFAULT_MODEL not in available:
+        logger.warning("Configured local model '%s' is not installed; EcoBI will use its deterministic fallback.", config.DEFAULT_MODEL)
+        return False
+
+    logger.info("Local Ollama and configured default model '%s' are available.", config.DEFAULT_MODEL)
+    return True
+
+
 def main() -> None:
     """Ponto de entrada do launcher executável."""
     parser = argparse.ArgumentParser(description="Launcher Local do EcoBI Intelligence")
@@ -128,6 +192,8 @@ def main() -> None:
     logger.info("=======================================================")
 
     env_paths = ensure_environment(base_dir, logger)
+    prepare_local_ai_runtime(logger, check_only=args.check_only)
+    check_local_ai_runtime(logger)
 
     if args.check_only:
         logger.info("Modo --check-only concluído com êxito.")
