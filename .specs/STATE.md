@@ -428,9 +428,8 @@ Mobile 390px screenshots place some header/action surfaces at the viewport edge;
 ## Handoff
 
 - **Feature**: `.specs/features/ecobi-finalization/`
-- **Phase / Task**: Execute / T17 round-2 clean-HEAD `check_proofs.py` and `validate_verification.py` gate
-- **Completed**: Atomic commits on `main` (`dafb016`, `3f3d5fd`, `943129d`, `d86a251`, `12d7663`, `6fe8b21`, `af4f65c`, `acc416c`, `fba5520`). Round-1 `check_proofs.py` at clean HEAD `acc416c` passed `39/0`; independent Verifier (`author != verifier`) audited C1–C23 + 10 PNG captures and reported 2 findings (`normalizeState` `"null"` crash + `C7` asset proof binding), both closed in `fba5520`.
-- **Next step**: Run round-2 `check_proofs.py` at clean HEAD, confirm `validate_verification.py` exits 0, and distill the 2 findings via `lessons.py`.
+- **Phase / Task**: Execute / Independent Onboarding Visual Audit, Live Runtime Revalidation, & TLC 4.1.0 Closure
+- **Completed**: Atomic commits on `main` (`dafb016`, `3f3d5fd`, `943129d`, `d86a251`, `12d7663`, `6fe8b21`, `af4f65c`, `acc416c`, `fba5520`, `ac78486`, `51e6df8`, `36882d0`, `29de035`). Independent Chrome visual audit (`onboarding-visual-audit.json` + `audit-*.png`) verified 18 general steps (5 chapters), 28 contextual steps across 12 views, 4 forced directions across `390x844`/`768x1024`/`1280x800`/`1440x900` × Light/Dark, clean SVG `[hidden]` DOM attribute toggling, `?` overlay cleanup, `ARROW_EDGE_PAD=28`, 1-line recovery fit, and clean `390x844` Quality view (`0 findings`, `0 console/network errors`). Revalidated live `start.ps1` + resident `qwen3.5:4b` + consecutive uploads (`201`/`201`) + full Pytest (`77 passed`, `real_db_untouched=True`).
+- **Next step**: Commit visual-audit evidence/doc reconciliation, finalize `verification.md`/`proofs.md`/`LESSONS.md`/`lessons.json` via official TLC scripts, and document TLC 4.1.0's post-commit `HEAD` SHA-1 behavior honestly.
 - **Blockers**: None for local gates. External corporate data sources, physical Power BI Desktop opening, and destructive uninstall of user's Ollama remain explicitly separated.
-- **Uncommitted files**: None after T17 closure commit.
 - **Branch**: `main` (local commits only; no `git push`).

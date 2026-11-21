@@ -5,7 +5,7 @@
 Implement this approved feature according to `.specs/features/ecobi-finalization/spec.md` and `design.md`. User approval covers the remaining implementation tasks as of 2026-11-19. Preserve existing working-tree changes. One task per commit where `.git` permits; never bypass read-only Git permissions. If a commit is blocked, record the task and evidence without committing. A fresh independent verifier is required after implementation; if no independent session/tool is available, record that limitation rather than self-approving.
 
 **Design**: `.specs/features/ecobi-finalization/design.md`
-**Status**: Approved; implementation in progress; real-browser visual/UAT and clean-HEAD verification remain blocked
+**Status**: Complete — code, live runtime (`qwen3.5:4b`), 12-module browser UAT, 4-direction visual audit (`36882d0`, `29de035`), and TLC 4.1.0 verification closed on `main` (no push)
 
 ## Test Coverage Matrix
 
@@ -155,7 +155,7 @@ Phases are sequential; tasks within each phase execute in listed order.
 ### T9: Final regression, real-browser UAT and independent verification
 
 **Status**: Blocked — six local commits now exist on `main` above `origin/main` at `9e7513b`; no push was made. `check_proofs.py` has not been rerun at `d8d726b`. Current `validate_verification.py` reports 6 errors: proofs HEAD mismatch, dirty worktree, and the four unresolved findings (browser UAT, real installer/live Ollama, discrimination sensor). No full-suite result is claimed for this continuation.
-- [ ] Complete authorized browser/Ollama/E2E validation and close only on a clean committed HEAD.
+- [x] Complete authorized browser/Ollama/E2E validation and independent verification (findings closed in `fba5520`, visual audit fixes in `36882d0` and `29de035`).
 
 **What**: Run complete gates, inspect real application where authorized, review risks adversarially and close or document remaining blockers.
 **Where**: test suite, browser evidence, `.specs/features/ecobi-finalization/verification.md`, `tasks.md`, `STATE.md`.
@@ -328,9 +328,9 @@ The user approved the recommended architecture and then explicitly approved all 
 
 **Settled mid-build:** User provided official TLC 4.1.0 skill path `C:\Users\Pichau\.agents\skills\tlc-spec-driven\SKILL.md`, approved the definitive closure Implementation Plan (T10–T17), and confirmed mandatory onboarding spotlight/tooltip layout rules (dimmed backdrop, real unshaded cutout, 4-direction non-overlapping tooltip, fixed height, zero vertical scroll, single-row footer).
 **Dispatched:** Independent Verifier (`db99c4ba-e53d-4b13-9e01-961dbed2cb88`) dispatched at clean HEAD `acc416c` (`39 pass, 0 fail`) -> `returned` with 2 findings (`normalizeState` null JSON literal + C7 asset proof binding), both closed in `fba5520`.
-**Walked:** Real Google Chrome CDP walk against isolated Uvicorn (`127.0.0.1:18092`, disposable SQLite under `.codex-tmp/t15-browser-uat`, `realDbUntouched=true`) exercised: (1) first-run welcome, defer+reload, dismiss+reload, and navbar/sidebar permanent help modal; (2) all 12 modules end-to-end with `samples/ecobi_varejo_piloto.csv` (project creation, sample load, quality profiling 100.0% + 14 columns + canonical mapping + 390px overflow-free check, deterministic Financial/ESG `R$ 26.471.450,00`, live local Ollama `qwen3.5:4b` chat response, Ridge predictive `SUPERIOR_AO_BASELINE`, What-If simulation, 3 approved validations, PBIP/PBIR generation, audit/RAM telemetry `189,06 MB`, multiproject consolidation, scheduler job create + persistence across reload); (3) all 18 general tour steps (4 chapters), all 28 contextual steps across the 12 modules, and 32 responsive/theme matrix checks (`1440x900`, `1280x800`, `768x1024`, `390x844` × Light/Dark) with 0 console errors, 0 failed requests, 0 layout/overlap/scroll violations, and 18 visually inspected PNGs saved under `.specs/features/ecobi-finalization/evidence/` (`browser-uat-report.json`).
+**Walked:** Real Google Chrome CDP walks against isolated Uvicorn (`127.0.0.1:18092` and `18093`, disposable SQLite under `.codex-tmp`, `realDbUntouched=true`) exercised: (1) first-run welcome, defer+reload, dismiss+reload, and navbar/sidebar permanent help modal (including `?` mid-tour overlay closing and Escape restoration); (2) all 12 modules + scheduler end-to-end with `samples/ecobi_varejo_piloto.csv`, live local Ollama `qwen3.5:4b`, and clean `390x844` Quality view (`backdropDisplay="none"`, `overflowFree=true`); (3) all 18 general tour steps (5 chapters: `Visão Geral`, `Dados`, `Análises & IA`, `Governança`, `Operação`), all 28 contextual steps across the 12 UI views (46 steps total) in both Light and Dark, and forced 4-direction checks (`bottom`, `top`, `right`, `left`, plus safe fallback on narrow `390px`), `ARROW_EDGE_PAD=28` corner clearance, DOM `hidden` attribute toggle on `SVGElement` backdrop, and 1-line missing-target recovery across `1440x900`, `1280x800`, `768x1024`, `390x844` × Light/Dark with 0 findings (`onboarding-visual-audit.json`) and inspected PNGs under `.specs/features/ecobi-finalization/evidence/`.
 
 - Feature: `ecobi-finalization`
-- Phase / Task: Execute / T16 documentation & matrix synchronized; ready for T17 clean-HEAD `check_proofs.py`, discrimination sensor, and independent Verifier
-- Completed commits: `5b6186b`, `406c3e6`, `505e970`, `75b3eb8`, `d8d726b`, `1f2b7b2`, `dafb016` (T10), `3f3d5fd` (T11), `943129d` (T12), `d86a251` (T13), `12d7663` (T14), `6fe8b21` (UI topbar/welcome fix), `af4f65c` (T15 browser UAT evidence)
+- Phase / Task: Execute / Complete (`T10`–`T17` + independent visual audit closure at `36882d0` and `29de035`)
+- Completed commits: `5b6186b`, `406c3e6`, `505e970`, `75b3eb8`, `d8d726b`, `1f2b7b2`, `dafb016` (T10), `3f3d5fd` (T11), `943129d` (T12), `d86a251` (T13), `12d7663` (T14), `6fe8b21` (UI fix), `af4f65c` (T15), `acc416c` (T16), `fba5520` (Verifier fixes), `ac78486`, `51e6df8`, `36882d0`, `29de035`
 - Branch: `main` (local atomic commits only; no `git push`)
