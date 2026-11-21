@@ -166,7 +166,7 @@ def test_api_journey_persists_project_import_quality_analysis_validation_and_pow
             files={"file": ("qa_second_project.csv", sample_file, "text/csv")},
             headers=auth_headers,
         )
-    assert second_upload.status_code == 201
+    assert second_upload.status_code == 201, second_upload.text
     second_dataset_id = second_upload.json()["dataset"]["id"]
     second_analysis = client.post(
         f"/api/projects/{second_project_id}/analyze/financial-esg",
@@ -224,3 +224,61 @@ def test_api_journey_persists_project_import_quality_analysis_validation_and_pow
         "ANALYSIS_VALIDATED",
         "POWERBI_PBIP_GENERATED_SUCCESSFULLY",
     }.issubset(actions)
+
+
+def test_upload_under_tight_host_ram_and_clean_rollback_when_exhausted(
+    client: TestClient,
+    auth_headers: Dict[str, str],
+    sample_paths: Dict[str, Path],
+    monkeypatch,
+) -> None:
+    """Pequenos uploads toleram pressão transitória de RAM do host (ex.: Ollama residente) e retornam 503 sem órfãos quando esgotada."""
+    from backend import config, memory_guard
+
+    project_response = client.post(
+        "/api/projects",
+        json={"name": "QA Upload Tight RAM", "sector": "Varejo", "currency": "BRL"},
+        headers=auth_headers,
+    )
+    assert project_response.status_code == 201
+    project_id = project_response.json()["id"]
+
+    tight_status = {
+        "ecobi_ram_used_mb": 320.0,
+        "ecobi_ram_budget_mb": 8192.0,
+        "ecobi_ram_usage_percentage": 3.91,
+        "host_total_ram_mb": 16384.0,
+        "host_available_ram_mb": 180.0,
+        "ollama_rss_mb": 3200.0,
+        "memory_alert_level": "WARNING",
+        "can_run_heavy_analysis": False,
+    }
+    monkeypatch.setattr(memory_guard, "get_memory_status", lambda: dict(tight_status))
+
+    with sample_paths["piloto"].open("rb") as dataset_file:
+        tight_upload = client.post(
+            f"/api/projects/{project_id}/datasets/upload",
+            files={"file": ("tight_ram_pilot.csv", dataset_file, "text/csv")},
+            headers=auth_headers,
+        )
+    assert tight_upload.status_code == 201, tight_upload.text
+    first_dataset_id = tight_upload.json()["dataset"]["id"]
+    first_path = Path(database.get_dataset(first_dataset_id)["storage_path"])
+    assert first_path.is_file()
+
+    exhausted_status = dict(tight_status, host_available_ram_mb=10.0, memory_alert_level="CRITICAL")
+    monkeypatch.setattr(memory_guard, "get_memory_status", lambda: dict(exhausted_status))
+
+    with sample_paths["piloto"].open("rb") as dataset_file:
+        exhausted_upload = client.post(
+            f"/api/projects/{project_id}/datasets/upload",
+            files={"file": ("exhausted_ram_pilot.csv", dataset_file, "text/csv")},
+            headers=auth_headers,
+        )
+    assert exhausted_upload.status_code == 503, exhausted_upload.text
+    assert "memória" in exhausted_upload.json()["detail"].lower()
+
+    remaining = database.list_datasets(project_id)
+    assert [item["id"] for item in remaining] == [first_dataset_id]
+    project_files = [p.resolve() for p in (config.DATA_DIR / project_id).iterdir()]
+    assert project_files == [first_path.resolve()]

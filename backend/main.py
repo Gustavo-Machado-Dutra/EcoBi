@@ -639,6 +639,7 @@ async def upload_dataset_endpoint(
     tmp_dir = Path(tempfile.mkdtemp(prefix="ecobi_up_"))
     tmp_file = tmp_dir / safe_name
 
+    dataset: Optional[Dict[str, Any]] = None
     try:
         with open(tmp_file, "wb") as out_f:
             while True:
@@ -663,9 +664,47 @@ async def upload_dataset_endpoint(
             "dataset": dataset,
             "quality_report": _enrich_quality_report(quality_report, dataset["id"]),
         }
+    except MemoryError as exc:
+        if dataset is not None:
+            storage_path = dataset.get("storage_path")
+            if storage_path:
+                try:
+                    Path(storage_path).unlink(missing_ok=True)
+                except OSError:
+                    pass
+            try:
+                database.delete_dataset(dataset["id"])
+            except Exception:
+                pass
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
+        if dataset is not None:
+            storage_path = dataset.get("storage_path")
+            if storage_path:
+                try:
+                    Path(storage_path).unlink(missing_ok=True)
+                except OSError:
+                    pass
+            try:
+                database.delete_dataset(dataset["id"])
+            except Exception:
+                pass
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
+        if dataset is not None:
+            storage_path = dataset.get("storage_path")
+            if storage_path:
+                try:
+                    Path(storage_path).unlink(missing_ok=True)
+                except OSError:
+                    pass
+            try:
+                database.delete_dataset(dataset["id"])
+            except Exception:
+                pass
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Falha ao processar arquivo: {exc}") from exc
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

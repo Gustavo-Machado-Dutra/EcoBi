@@ -55,6 +55,16 @@ CANONICAL_COLUMNS_SPEC = {
 # Utilitários de Hash, Codificação e Detecção de Delimitador
 # ============================================================================
 
+def _estimate_dataset_headroom_mb(file_size_bytes: int, default_mb: float) -> float:
+    """Dimensiona a margem mínima de RAM proporcional ao arquivo preservando o teto de 8 GB."""
+    file_mb = max(0.0, file_size_bytes / (1024.0 * 1024.0))
+    if file_mb <= 1.0:
+        return min(default_mb, max(32.0, round(file_mb * 8.0 + 32.0, 2)))
+    if file_mb <= 5.0:
+        return min(default_mb, max(64.0, round(file_mb * 16.0 + 48.0, 2)))
+    return default_mb
+
+
 def _compute_sha256(file_path: Path) -> str:
     """Calcula hash SHA-256 de arquivo em blocos de 64 KB."""
     sha = hashlib.sha256()
@@ -180,7 +190,9 @@ def ingest_dataset_file(
     injection_findings: List[str] = []
 
     try:
-        memory_guard.assert_memory_headroom(required_mb=128.0)
+        memory_guard.assert_memory_headroom(
+            required_mb=_estimate_dataset_headroom_mb(file_size_bytes, 128.0)
+        )
 
         if ext == ".csv":
             encoding, delimiter = _detect_csv_dialect_and_encoding(dest_path)
@@ -249,13 +261,13 @@ def ingest_dataset_file(
             raise ValueError(f"O arquivo '{filename}' não contém linhas de dados válidas.")
 
     except Exception as e:
-        # Se ocorreu erro de parsing ou validação, descarta arquivo e propaga ValueError limpo
+        # Se ocorreu erro de parsing ou validação, descarta arquivo e propaga exceção limpa
         if dest_path.exists():
             try:
                 dest_path.unlink()
             except Exception:
                 pass
-        if isinstance(e, ValueError):
+        if isinstance(e, (ValueError, MemoryError)):
             raise
         raise ValueError(f"Falha na leitura do arquivo '{filename}': {e}") from e
 
@@ -343,11 +355,13 @@ def load_dataset_dataframe(dataset_record: Union[Dict[str, Any], str]) -> pd.Dat
         raise FileNotFoundError(f"Arquivo do dataset não localizado no disco: '{storage_path}'.")
 
     ext = storage_path.suffix.lower()
-    memory_guard.assert_memory_headroom(required_mb=256.0)
+    file_size = storage_path.stat().st_size
+    memory_guard.assert_memory_headroom(
+        required_mb=_estimate_dataset_headroom_mb(file_size, 256.0)
+    )
 
     if ext == ".csv":
         encoding, delimiter = _detect_csv_dialect_and_encoding(storage_path)
-        file_size = storage_path.stat().st_size
         if file_size > 10 * 1024 * 1024:
             chunks = []
             for ch in pd.read_csv(storage_path, sep=delimiter, encoding=encoding, chunksize=config.CSV_CHUNK_SIZE):

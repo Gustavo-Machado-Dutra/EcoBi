@@ -119,12 +119,22 @@ def get_memory_status() -> Dict[str, Any]:
 def assert_memory_headroom(required_mb: float = 512.0) -> bool:
     """Valida se há margem de memória RAM suficiente no EcoBI e no host.
 
+    Executa coleta de lixo (gc.collect) uma vez quando próximo do limite antes de falhar.
     Levanta MemoryError caso o limite de 8192 MB do EcoBI ou a RAM do SO seja violada.
     """
     status = get_memory_status()
     used = status["ecobi_ram_used_mb"]
     budget = status["ecobi_ram_budget_mb"]
     avail = status["host_available_ram_mb"]
+
+    if used + required_mb > budget or avail < required_mb:
+        import gc
+
+        gc.collect()
+        status = get_memory_status()
+        used = status["ecobi_ram_used_mb"]
+        budget = status["ecobi_ram_budget_mb"]
+        avail = status["host_available_ram_mb"]
 
     if used + required_mb > budget:
         raise MemoryError(

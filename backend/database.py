@@ -1273,6 +1273,20 @@ def list_datasets(
         return _rows_to_list(c.execute(query, params).fetchall())
 
 
+def delete_dataset(dataset_id: str, conn: Optional[sqlite3.Connection] = None) -> bool:
+    """Remove registro de dataset (usado em rollback limpo de falha durante upload/profiling)."""
+    query = "DELETE FROM datasets WHERE id = ?;"
+
+    def _execute(target_conn: sqlite3.Connection) -> bool:
+        cur = target_conn.execute(query, (dataset_id,))
+        return cur.rowcount > 0
+
+    if conn is not None:
+        return _execute(conn)
+    with get_db_context() as c:
+        return _execute(c)
+
+
 # ============================================================================
 # Operações CRUD: Dataset Mappings
 # ============================================================================
