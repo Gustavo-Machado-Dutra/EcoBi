@@ -28,23 +28,37 @@ Write-Host " EcoBI Intelligence — Release Piloto Windows" -ForegroundColor Gre
 Write-Host " Raiz do Projeto: $RootDir" -ForegroundColor Gray
 Write-Host "=======================================================" -ForegroundColor DarkGreen
 
+function Resolve-EcoBIPythonLauncher {
+    $pyCommand = Get-Command py -ErrorAction SilentlyContinue
+    if ($pyCommand) {
+        $pyVersion = & $pyCommand.Source -3 --version 2>$null
+        if ($LASTEXITCODE -eq 0 -and $pyVersion -match 'Python (\d+\.\d+)' -and [version]$Matches[1] -ge [version]'3.11') {
+            return @{ Exe = $pyCommand.Source; Prefix = @('-3') }
+        }
+        $py311Version = & $pyCommand.Source -3.11 --version 2>$null
+        if ($LASTEXITCODE -eq 0 -and $py311Version -match 'Python (\d+\.\d+)' -and [version]$Matches[1] -ge [version]'3.11') {
+            return @{ Exe = $pyCommand.Source; Prefix = @('-3.11') }
+        }
+    }
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCommand) {
+        $pythonVersion = & $pythonCommand.Source --version 2>$null
+        if ($LASTEXITCODE -eq 0 -and $pythonVersion -match 'Python (\d+\.\d+)' -and [version]$Matches[1] -ge [version]'3.11') {
+            return @{ Exe = $pythonCommand.Source; Prefix = @() }
+        }
+    }
+    throw "Python 3.11+ is required to prepare the local .venv. Install Python for this Windows user and retry."
+}
+
 $VenvPython = "$RootDir\.venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {
-    $PythonCommand = Get-Command py -ErrorAction SilentlyContinue
-    if ($PythonCommand) {
-        & $PythonCommand.Source -3.11 -m venv "$RootDir\.venv"
-    } else {
-        $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
-        if (-not $PythonCommand) { throw "Python 3.11+ is required to prepare the local .venv. Install Python for this Windows user and retry." }
-        $PythonVersion = & $PythonCommand.Source --version
-        if ($LASTEXITCODE -ne 0 -or $PythonVersion -notmatch 'Python (\d+\.\d+)' -or [version]$Matches[1] -lt [version]'3.11') { throw "Python 3.11+ is required to prepare the local .venv." }
-        & $PythonCommand.Source -m venv "$RootDir\.venv"
-    }
+    $ResolvedPython = Resolve-EcoBIPythonLauncher
+    & $ResolvedPython.Exe @($ResolvedPython.Prefix + @('-m', 'venv', "$RootDir\.venv"))
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $VenvPython)) { throw "Unable to create the project-local Python environment." }
 }
 
 $PythonExe = $VenvPython
-& $PythonExe -c "import fastapi, uvicorn, pandas, numpy, sklearn, openpyxl, multipart, psutil" 2>$null
+& $PythonExe -c "import fastapi, uvicorn, pandas, numpy, sklearn, openpyxl, multipart, psutil, httpx" 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Installing declared dependencies into the project-local .venv..." -ForegroundColor Yellow
     & $PythonExe -m pip install --disable-pip-version-check --no-input -r "$RootDir\requirements.txt"

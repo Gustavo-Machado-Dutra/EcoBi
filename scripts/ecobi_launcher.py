@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import time
+from typing import Dict, Optional
 import urllib.request
 import webbrowser
 

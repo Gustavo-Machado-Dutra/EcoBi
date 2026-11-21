@@ -95,4 +95,8 @@ O EcoBI conta com um agendador local assíncrono cooperativo (`backend/services/
 ## 8. Procedimento de Encerramento e Desinstalação
 
 - **Encerramento Limpo**: Pressione `Ctrl+C` na janela do console do launcher. O Uvicorn e o Agendador concluirão as tarefas ativas e fecharão as conexões SQLite com segurança.
-- **Desinstalação**: Como o EcoBI é uma aplicação local autocontida, basta remover a pasta do projeto. Nenhum registro invasivo no Registro do Windows ou serviço residual é deixado no sistema.
+O EcoBI não instala serviço próprio de sistema. Se o Ollama foi instalado pelo bootstrap, ele permanece como aplicativo separado no perfil do usuário; remova-o pelo desinstalador do Ollama antes de excluir os modelos locais, se desejar recuperar espaço.
+
+
+## Inicialização por um comando
+Na raiz do repositório, execute `.\start.ps1`. O script delega a `scripts/start_ecobi.ps1`, prepara o `.venv` local com Python 3.11+ e instala dependências só nesse ambiente. Na primeira inicialização normal do Windows, o launcher procura Ollama; se estiver ausente, baixa o instalador oficial, verifica a assinatura Authenticode do editor, instala no perfil do usuário e baixa somente o modelo padrão configurado. O fluxo não baixa nem instala nada em `-CheckOnly` e reusa o Ollama/modelo já instalado. A instalação e o modelo requerem Internet e espaço local. Falhas continuam no fallback analítico local com `BLOCK_EXTERNAL_AI=True`. Esta rotina de testes usa comandos simulados; o instalador real e a inferência não foram executados neste ambiente.

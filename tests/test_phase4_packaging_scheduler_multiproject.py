@@ -82,13 +82,18 @@ def test_c21_windows_launcher_and_bootstrap_lifecycle(tmp_path: Path):
     launcher_file = root_dir / "scripts" / "ecobi_launcher.py"
     bat_file = root_dir / "scripts" / "start_ecobi.bat"
     ps1_file = root_dir / "scripts" / "start_ecobi.ps1"
+    root_ps1_file = root_dir / "start.ps1"
     spec_file = root_dir / "ecobi.spec"
     deploy_doc = root_dir / "docs" / "windows_deployment.md"
+    ollama_bootstrap = root_dir / "scripts" / "ollama_bootstrap.ps1"
 
+    assert ollama_bootstrap.exists() and ollama_bootstrap.is_file()
     assert launcher_file.exists() and launcher_file.is_file()
     assert bat_file.exists() and bat_file.is_file()
     assert ps1_file.exists() and ps1_file.is_file()
+    assert root_ps1_file.exists() and root_ps1_file.is_file()
     assert spec_file.exists() and spec_file.is_file()
+    assert "ollama_bootstrap.ps1" in spec_file.read_text(encoding="utf-8")
     assert deploy_doc.exists() and deploy_doc.is_file()
 
     # 2. Testa função ensure_environment em diretório limpo
