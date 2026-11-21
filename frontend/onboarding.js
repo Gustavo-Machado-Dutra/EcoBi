@@ -6,7 +6,7 @@
   const SPOTLIGHT_PAD = 6;
   const TOOLTIP_GAP = 14;
   const VIEWPORT_MARGIN = 12;
-  const ARROW_EDGE_PAD = 22;
+  const ARROW_EDGE_PAD = 28;
 
   const modules = [
     ["view-dashboard", "Visão Executiva", "Acompanhe somente indicadores disponíveis no projeto e dataset selecionados."],
@@ -241,6 +241,7 @@
     function setBackdropHole(spotRect) {
       if (!backdrop) return;
       backdrop.hidden = false;
+      if (backdrop.style) backdrop.style.display = "block";
       if (backdrop.setAttribute) {
         backdrop.setAttribute("viewBox", `0 0 ${global.innerWidth} ${global.innerHeight}`);
       }
@@ -259,7 +260,16 @@
     }
 
     function hideBackdrop() {
-      if (backdrop) backdrop.hidden = true;
+      if (cutoutHole && cutoutHole.setAttribute) {
+        cutoutHole.setAttribute("x", "0");
+        cutoutHole.setAttribute("y", "0");
+        cutoutHole.setAttribute("width", "0");
+        cutoutHole.setAttribute("height", "0");
+      }
+      if (backdrop) {
+        backdrop.hidden = true;
+        if (backdrop.style) backdrop.style.display = "none";
+      }
       if (spot) spot.hidden = true;
     }
 
@@ -344,6 +354,7 @@
 
     function openHelp() {
       if (!panel) return;
+      if (!panel.hidden) closeTour();
       introWasVisible = intro && !intro.hidden;
       introReturnFocus = introWasVisible ? returnFocus : null;
       returnFocus = document.activeElement;
@@ -421,6 +432,7 @@
         viewSwitcher(step.view);
       }
       global.requestAnimationFrame(() => {
+        if (!activeSteps.length || activeSteps[currentStep] !== step) return;
         panel.hidden = false;
         const chapterPrefix = step.chapter ? `${step.chapter} \u00b7 ` : "";
         panel.querySelector(".eco-tour-progress").textContent = `${chapterPrefix}Etapa ${currentStep + 1} de ${activeSteps.length}`;
@@ -431,7 +443,7 @@
         const target = resolveStepTarget(step);
         const recovery = panel.querySelector(".eco-tour-recovery");
         if (!target) {
-          showCenteredFallback("Este destaque n\u00e3o est\u00e1 dispon\u00edvel neste momento. Avance ou encerre o tutorial.");
+          showCenteredFallback("Destaque indispon\u00edvel aqui. Avance ou encerre.");
         } else {
           target.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
           let positioned = positionTarget(target);
@@ -497,7 +509,7 @@
       if (panel && !panel.hidden && activeSteps[currentStep]) {
         const target = resolveStepTarget(activeSteps[currentStep]);
         if (!target) {
-          showCenteredFallback("Este destaque n\u00e3o est\u00e1 dispon\u00edvel neste momento. Avance ou encerre o tutorial.");
+          showCenteredFallback("Destaque indispon\u00edvel aqui. Avance ou encerre.");
           return;
         }
         positionTarget(target);

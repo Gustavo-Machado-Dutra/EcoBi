@@ -22,10 +22,13 @@ function loadRealSwitchView(onboarding, document, localStorage, requests) {
   return context.__testSwitchView;
 }
 
-test("general guide covers all 18 documented topics and module targets", () => {
+test("general guide covers all 18 documented topics in 5 chapters and module targets", () => {
   const steps = onboarding.getGeneralSteps();
   const expectedTitles = JSON.parse("[\"EcoBI Intelligence\",\"Barra de contexto\",\"Projeto ativo\",\"Dataset ativo\",\"Navega\u00e7\u00e3o\",\"Dashboard Executivo\",\"Importa\u00e7\u00e3o\",\"Qualidade e Schema\",\"An\u00e1lises financeiras e ESG\",\"Assistente IA local\",\"Resultados Preditivos\",\"Simula\u00e7\u00f5es What-If\",\"Valida\u00e7\u00e3o\",\"Power BI\",\"Hist\u00f3rico e Auditoria\",\"Multiprojeto\",\"Automa\u00e7\u00f5es\",\"Governan\u00e7a e seguran\u00e7a\"]");
   assert.deepEqual(steps.map((step) => step.title), expectedTitles);
+  const chapters = [];
+  for (const step of steps) if (!chapters.includes(step.chapter)) chapters.push(step.chapter);
+  assert.deepEqual(chapters, ["Vis\u00e3o Geral", "Dados", "An\u00e1lises & IA", "Governan\u00e7a", "Opera\u00e7\u00e3o"]);
   assert.deepEqual(steps.slice(5, 8).map((step) => step.view), ["view-dashboard", "view-import", "view-quality"]);
   assert.ok(steps.every((step) => step.chapter && step.body && step.body.length <= 145 && step.target.startsWith("[data-tour=\"")));
   assert.ok(steps.every((step) => !step.target.includes("module-view-")));
@@ -42,10 +45,12 @@ test("contextual guides cover all twelve existing views", () => {
   assert.equal(new Set(modules.map((module) => module.id)).size, 12);
   assert.ok(modules.every((module) => module.id.startsWith("view-") && module.title && module.body));
   const shell = fs.readFileSync("frontend/index.html", "utf8");
+  let totalContextualSteps = 0;
   for (const module of modules) {
     assert.ok(shell.includes(`data-tour=\"module-${module.id}\"`));
     const steps = onboarding.getContextualSteps(module.id);
     assert.ok(steps.length >= 2, `Expected multi-step guide for ${module.id}`);
+    totalContextualSteps += steps.length;
     for (const step of steps) {
       assert.equal(step.view, module.id);
       assert.ok(step.chapter && step.title && step.body && step.body.length <= 145);
@@ -53,6 +58,7 @@ test("contextual guides cover all twelve existing views", () => {
       assert.ok(shell.includes(step.target.slice(1, -1)), `Missing contextual target ${step.target}`);
     }
   }
+  assert.equal(totalContextualSteps, 28);
 });
 
 test("stored onboarding preferences are versioned and non-sensitive", () => {
@@ -331,14 +337,38 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
     assert.equal(panel.dataset.placement, "center");
     assert.equal(spot.hidden, true);
 
-    // CSS contract: no vertical scrollbar, fixed height, no 9999px shadow dimming spotlight, single-row footer
+    // Edge arrow offset must stay clear of 18px rounded panel corners across all 4 placements
+    const cornerEdgeLayoutBottom = onboarding.computeTooltipPlacement(
+      { left: 2, top: 6, right: 20, bottom: 38, width: 18, height: 32 },
+      { width: 366, height: 240 },
+      { width: 390, height: 844 }
+    );
+    assert.equal(cornerEdgeLayoutBottom.placement, "bottom");
+    assert.ok(cornerEdgeLayoutBottom.arrowOffset >= 28);
+
+    // Calling openHelp() during an active tour closes tour overlays before opening chooser
+    panel.hidden = false;
+    backdrop.hidden = false;
+    spot.hidden = false;
+    onboarding.openHelp();
+    assert.equal(panel.hidden, true);
+    assert.equal(backdrop.hidden, true);
+    assert.equal(spot.hidden, true);
+    assert.equal(chooser.hidden, false);
+    handlers.get("keydown")({ key: "Escape" });
+    assert.equal(chooser.hidden, true);
+    assert.equal(backdrop.hidden, true);
+
+    // CSS contract: no vertical scrollbar, fixed height, no 9999px shadow dimming spotlight, single-row footer, hidden overlays display:none
     const styles = fs.readFileSync("frontend/styles.css", "utf8");
     assert.doesNotMatch(styles, /\.eco-tour-panel\s*\{[^}]*overflow-y:\s*auto/);
     assert.doesNotMatch(styles, /\.eco-tour-panel\s*\{[^}]*9999px/);
     assert.doesNotMatch(styles, /\.eco-tour-spotlight\s*\{[^}]*9999px/);
+    assert.match(styles, /\.eco-tour-backdrop\[hidden\][^{]*\{[^}]*display:\s*none\s*!important/);
     assert.match(styles, /\.eco-tour-backdrop-fill\s*\{[^}]*fill:/);
     assert.match(styles, /\.eco-tour-panel\s*\{[^}]*height:\s*228px/);
     assert.match(styles, /\.eco-tour-actions\s*\{[^}]*flex-wrap:\s*nowrap/);
+    assert.match(styles, /\.eco-tour-actions\s+button\[data-action="general-help"\]/);
 
     targetAvailable = false;
     onboarding.startContext("view-dashboard");
