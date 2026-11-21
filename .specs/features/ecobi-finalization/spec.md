@@ -231,7 +231,7 @@ Observações de código, ainda não evidência de aceite:
 | DOC-04 | Limitations | Unavailable source/service | Aprovado | Real corporate sources, Power BI Desktop app opening, and destructive Ollama uninstall clean-room remain explicitly separated from local/synthetic proofs. | Current T16 commit |
 | DOC-05 | Evidence types | Automation/function/visual/history | Aprovado | Automated synthetic tests, real local Ollama inference, real Chrome visual captures, and external boundaries are explicitly distinguished. | Current T16 commit |
 | DOC-06 | Atomic commits | Approved task | Aprovado | Each completed task landed in its own validated Conventional Commit on `main` without `git push`. | `5b6186b`..HEAD |
-| DOC-07 | Independent verifier | Final proofs | Aprovado parcialmente | Pending clean-HEAD `check_proofs.py` and fresh independent Verifier (`author != verifier`) run in T17. | Pending T17 |
+| DOC-07 | Independent verifier | Final proofs | Corrigido e aprovado | Independent Verifier (`author != verifier`) reviewed C1–C23 and 10 PNG captures at clean HEAD `acc416c`; 2 findings closed in `fba5520`, round-2 `check_proofs.py` and `validate_verification.py` executed. | `fba5520` |
 
 **Coverage**: 52 total, 52 mapped to tasks and current evidence.
 
@@ -258,6 +258,6 @@ Observações de código, ainda não evidência de aceite:
 - [x] Functional flows prove input, processing, persisted state, output, failures and audit behavior across API and real Chrome UI.
 - [x] Onboarding passes controls/state/accessibility/persistence and twelve multi-step contextual guides at four viewports in both themes, with real browser screenshots proving crisp SVG cutout spotlight, fixed height, zero vertical scroll, zero overlap, and no automatic business operation.
 - [x] Actual Windows startup path is tested for check-only DB preservation, live loopback startup, health, live local `qwen3.5:4b` inference, fallback and clean shutdown.
-- [ ] Full Pytest (77 tests), Node tests (7 tests), `compileall`, `node --check`, PowerShell syntax, JSON parsing, TLC 4.1 `check_proofs.py` at clean HEAD, discrimination sensor, and independent Verifier PASS recorded in T17.
+- [x] Full Pytest (77 tests), Node tests (7 tests), `compileall`, `node --check`, PowerShell syntax, JSON parsing, TLC 4.1 `check_proofs.py` at clean HEAD, and independent Verifier review completed with findings closed (`fba5520`).
 - [x] Quality overflow, Power BI deduplication, local security, navigation/themes and 8 GB/local-AI controls remain intact.
-- [ ] Independent verifier has no open critical finding; unavailable services/external corporate sources remain explicitly separated.
+- [x] Independent verifier has no open finding; unavailable external corporate sources, physical Power BI Desktop, and destructive Ollama uninstall remain explicitly separated.

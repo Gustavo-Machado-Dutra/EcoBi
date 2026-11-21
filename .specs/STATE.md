@@ -428,9 +428,9 @@ Mobile 390px screenshots place some header/action surfaces at the viewport edge;
 ## Handoff
 
 - **Feature**: `.specs/features/ecobi-finalization/`
-- **Phase / Task**: Execute / T16 closure documentation committed, transitioning to T17 clean-HEAD TLC 4.1.0 proof runner (`check_proofs.py`), discrimination sensor, and fresh independent Verifier (`author != verifier`).
-- **Completed**: Atomic commits on `main` for launcher Python 3.11+ & root `start.ps1` (`dafb016`), intermittent second-upload tight-RAM headroom & 503 rollback (`3f3d5fd`), SVG-mask spotlight & fixed non-overlapping tooltip (`943129d`), focused `data-tour` targets & 12 multi-step contextual guides (`d86a251`), live `start.ps1` + local Ollama `qwen3.5:4b` verification (`12d7663`), topbar `?` button & welcome modal row alignment (`6fe8b21`), and real Chrome 12-module + 78-check onboarding UAT + 18 PNG captures (`af4f65c`).
-- **Next step**: Commit T16 closure documentation to reach a 100% clean working tree, execute `check_proofs.py` at HEAD, run scratch discrimination mutations, dispatch independent Verifier to update `verification.md`, and run `validate_verification.py`.
-- **Blockers**: None for local gates. External corporate data sources, Power BI Desktop desktop-app rendering, and destructive clean-room uninstall of user's Ollama remain explicitly separated as out-of-environment boundaries.
-- **Uncommitted files**: T16 documentation updates (staged next).
+- **Phase / Task**: Execute / T17 round-2 clean-HEAD `check_proofs.py` and `validate_verification.py` gate
+- **Completed**: Atomic commits on `main` (`dafb016`, `3f3d5fd`, `943129d`, `d86a251`, `12d7663`, `6fe8b21`, `af4f65c`, `acc416c`, `fba5520`). Round-1 `check_proofs.py` at clean HEAD `acc416c` passed `39/0`; independent Verifier (`author != verifier`) audited C1–C23 + 10 PNG captures and reported 2 findings (`normalizeState` `"null"` crash + `C7` asset proof binding), both closed in `fba5520`.
+- **Next step**: Run round-2 `check_proofs.py` at clean HEAD, confirm `validate_verification.py` exits 0, and distill the 2 findings via `lessons.py`.
+- **Blockers**: None for local gates. External corporate data sources, physical Power BI Desktop opening, and destructive uninstall of user's Ollama remain explicitly separated.
+- **Uncommitted files**: None after T17 closure commit.
 - **Branch**: `main` (local commits only; no `git push`).

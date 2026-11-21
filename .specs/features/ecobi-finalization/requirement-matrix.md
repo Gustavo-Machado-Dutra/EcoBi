@@ -55,7 +55,7 @@ Statuses follow the specification vocabulary (`Aprovado`, `Corrigido e aprovado`
 | DOC-04 | Limitations | Unavailable source/service | Aprovado | Real corporate sources, Power BI Desktop desktop app opening, and destructive Ollama uninstall clean-room remain explicitly separated. | T16 commit |
 | DOC-05 | Evidence types | Automation/function/visual/history | Aprovado | Automated synthetic tests, real local Ollama inference, real Chrome visual captures, and external boundaries are explicitly distinguished. | T16 commit |
 | DOC-06 | Atomic commits | Approved task | Aprovado | Each completed task landed in its own validated Conventional Commit on `main` without `git push`. | `5b6186b`..HEAD |
-| DOC-07 | Independent verifier | Final proofs | Aprovado parcialmente | Pending clean-HEAD `check_proofs.py` and fresh independent Verifier (`author != verifier`) run in T17. | Pending T17 |
+| DOC-07 | Independent verifier | Final proofs | Corrigido e aprovado | Independent Verifier (`author != verifier`) audited C1–C23 + 10 PNG captures at clean HEAD `acc416c`; both findings closed in `fba5520` and verified via round-2 TLC gates. | `fba5520` |
 
 ## Current-round evidence summary (2026-11-20)
 

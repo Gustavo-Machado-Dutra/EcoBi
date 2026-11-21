@@ -1,43 +1,40 @@
-# EcoBI Finalization — TLC Verification
+# ecobi-finalization verification
 
-**Date:** 2026-11-20
-**Reviewed baseline:** `HEAD 9e7513b`; dirty worktree.
-**Proofs**: `proofs.md` at 9e7513b (dirty worktree; 36 pass/0 fail rows)
+**Verdict**: FAIL
+**Proofs**: `proofs.md` at acc416c
 **Verifier**: independent sub-agent (author != verifier)
-**Verdict:** **FAIL — required clean-tree and user-facing evidence are missing.** This is an evidence verdict, not a confirmed product defect.
-**Review:** Fresh read-only verifier; only this verification report was written. No other product, test, documentation, or `.git` changes were made.
 
 ## Checks
 
 | Check | Test | Holds |
 | --- | --- | --- |
-| C1 | `tests/test_root_launcher.py:41-64,72-93`; `tests/test_local_network_security.py:144-166` | Partial — assertions detect check-only DB preservation and unsafe CLI bind, but not full fresh-clone startup, running-server shutdown, or scheduler recovery. |
-| C2 | `tests/test_phase4_packaging_scheduler_multiproject.py:586-641`; `tests/test_ollama_bootstrap.py:106-172` | Partial — mocked local-model/fallback/install branches are discriminating; no live Ollama install, pull, or inference. |
-| C3 | `tests/test_phase4_packaging_scheduler_multiproject.py:201-274,285-293` | Yes — asserts exact initial/incremental dataset rows and the overlapping-run lock outcome/history. |
-| C4 | `tests/test_phase4_packaging_scheduler_multiproject.py:322-363,372-412` | Yes — asserts isolated restore snapshots, age/count retention, physical and metadata deletion, and HMAC verification. |
-| C5 | `tests/test_phase4_packaging_scheduler_multiproject.py:485-493,515-521` | Yes — asserts multiproject totals and HTTP 403 for the restricted project case. |
-| C6 | `tests/frontend/onboarding.test.cjs:25-49,104-175,185-280` | Partial — simulated DOM tests discriminate keyboard/focus/Escape and resize geometry, but do not cover real rendered behavior, screen readers, contrast, all specified viewports/themes, or captures. |
-| C7 | `tests/test_finalization_frontend.py:6-12,15-20` | Yes — asserts shell help controls/controller references and local asset serving; not browser interaction. |
-| C8 | `tests/test_data_quality.py:54-85,336-381` | Yes — asserts malformed upload rejection, saved mapping persistence, and reprofiled mapping/duplicate-period outcome. |
-| C9 | `tests/test_simulation.py:89,113-133` | Yes — asserts invalid-bound HTTP 400 and separation of scenario output from observed impact. |
-| C10 | `tests/test_security_memory_api.py:29-104,260-269` | Yes — asserts session/consent/role outcomes and DB/file removal on purge. |
-| C11 | `tests/test_powerbi_generator.py:248-289`; `tests/test_quality_overflow.py:7-15` | Partial — export assertions discriminate source-row dedupe/reconciliation; layout test checks literal markup/CSS only, not rendered label containment or viewport scrolling. |
-| C12 | `tests/test_analytics_financial_esg.py:74-78,116-123` | Yes (synthetic fixture) — checks independently calculated financial/ESG values and credit separation; no corporate dataset used. |
-| C13 | `tests/test_llm_tool_calling.py:202-251` | Yes (fallback fixture) — asserts nonempty text, exact offline mode, tool name/IDs, and populated profile summary; not live Ollama. |
-| C14 | `tests/test_predictive_backtesting.py:67-68,109,124` | Yes — checks insufficient-history outcome, chronological split, and baseline comparison for the tested fixture. |
-| C15 | `tests/test_validation_engine.py:67-82,98-110` | Yes — asserts rejected analyses cannot publish and tested exports return HTTP 400. |
-| C16 | `tests/test_powerbi_generator.py:200-214` | Yes (artifact-level) — checks reconciliation, discrepancies, tolerance, download, and required bundle members; not Power BI Desktop opening. |
-| C17 | `tests/test_phase4_packaging_scheduler_multiproject.py:525-546` | Yes — asserts due dispatch, persisted next run/status, no duplicate dispatch, and one execution record. |
-| C18 | `proofs.md:3-6,35,229-246`; `tasks.md:29` | No — ledger records 36 proof rows passed/0 failed and suite 72 passed, but supplied runner exits nonzero for dirty tree; clean-HEAD and complete Build gate are not proven. |
-| C19 | `tests/frontend/onboarding.test.cjs:291-392,394-470` | Yes (simulated integration) — asserts navigation, GET-only requests, onboarding-only writes, and unchanged project/dataset state in the harness; not browser behavior. |
-| C20 | `tests/test_finalization_e2e.py:145-190,192-` | Yes (synthetic API) — asserts read-after-write results and exact consolidated revenue across two projects plus export; in-process TestClient, not browser/live-source evidence. |
-| C21 | `tests/test_finalization_e2e.py:11-74`; `tests/test_data_quality.py:108-148` | Yes (storage-path behavior) — asserts distinct sequential/concurrent paths, exact retained bytes, and preserved records; concurrency is direct service invocation, not simultaneous HTTP uploads. |
+| C1 | `tests/test_phase4_packaging_scheduler_multiproject.py` `test_c21_windows_launcher_and_bootstrap_lifecycle`; `tests/test_root_launcher.py` `test_root_start_script_reaches_launcher_in_isolated_project_root`; `tests/test_local_network_security.py` `test_launcher_rejects_network_bind_hosts_before_startup` | yes |
+| C2 | `tests/test_phase4_packaging_scheduler_multiproject.py` `test_c25_*` (5 tests); `tests/test_ollama_bootstrap.py` (14 tests) | yes |
+| C3 | `tests/test_phase4_packaging_scheduler_multiproject.py` `test_c22_scheduled_connector_sync_and_concurrency_lock` | yes |
+| C4 | `tests/test_phase4_packaging_scheduler_multiproject.py` `test_c23_scheduled_hmac_backup_retention_and_restore_trial` | yes |
+| C5 | `tests/test_phase4_packaging_scheduler_multiproject.py` `test_c24_multiproject_dashboard_consolidation_and_rbac` | yes |
+| C6 | `tests/frontend/onboarding.test.cjs` `contextual guides cover all twelve existing views`, `stored onboarding preferences are versioned and non-sensitive`, `welcome and tour preserve non-modal keyboard navigation while help remains modal` | yes |
+| C7 | `tests/test_finalization_frontend.py` `test_application_shell_loads_onboarding_controller` | no - only requests `GET /` and asserts the HTML references `/static/onboarding.js`; does not assert `/static/onboarding.js` is actually served (sibling `test_onboarding_controller_is_served_as_local_static_asset` is not selected by C7's `Proof:` line) |
+| C8 | `tests/test_data_quality.py` `test_corrupted_file_rejected_cleanly`, `test_canonical_mapping_save_and_reapply` | yes |
+| C9 | `tests/test_simulation.py` `test_simulation_outputs_separated_and_bounds_validated` | yes |
+| C10 | `tests/test_security_memory_api.py` `test_auth_session_lgpd_consent_and_401`, `test_pii_masking_and_lgpd_cascade_purge` | yes |
+| C11 | `tests/test_quality_overflow.py` `test_quality_mapping_table_keeps_accessible_labels_inside_scrollport`; `tests/test_powerbi_generator.py` `test_pbip_deduplicates_repeated_analyses_preserving_source_period_rows` | yes |
+| C12 | `tests/test_analytics_financial_esg.py` `test_financial_esg_deterministic_and_credit_separation` | yes |
+| C13 | `tests/test_llm_tool_calling.py` `test_assistant_api_endpoint` | yes |
+| C14 | `tests/test_predictive_backtesting.py` `test_temporal_split_and_insufficient_history` | yes |
+| C15 | `tests/test_validation_engine.py` `test_rejected_analysis_blocks_powerbi_generation` | yes |
+| C16 | `tests/test_powerbi_generator.py` `test_pbip_pbir_generation_and_reconciliation` | yes |
+| C17 | `tests/test_phase4_packaging_scheduler_multiproject.py` `test_scheduler_dispatches_persisted_due_job_once` | yes |
+| C18 | `Run suite` (`pytest -vv`, 77 passed) | yes |
+| C19 | `tests/frontend/onboarding.test.cjs` `general tour controls navigate only existing views, issue no controller-owned fetches, and persist completion`, `general tour uses real navigation without business writes or project changes` | yes |
+| C20 | `tests/test_finalization_e2e.py` `test_api_journey_persists_project_import_quality_analysis_validation_and_powerbi` | yes |
+| C21 | `tests/test_finalization_e2e.py` `test_failed_reupload_with_existing_filename_preserves_dataset_file`; `tests/test_data_quality.py` `test_concurrent_same_filename_ingests_use_distinct_storage_paths` | yes |
+| C22 | `tests/test_finalization_e2e.py` `test_upload_under_tight_host_ram_and_clean_rollback_when_exhausted` | yes |
+| C23 | `tests/test_root_launcher.py` `test_start_ecobi_accepts_python_3_11_plus_and_checks_declared_imports`, `test_root_start_script_serves_health_and_onboarding_then_shuts_down_cleanly` | yes |
 
 ## Findings
 
 | Finding | Evidence | Fix | Closed |
 | --- | --- | --- | --- |
-| P1 — Clean-tree proof gate fails | `proofs.md:3-6` records dirty tree and 36/0 proof rows; the supplied run exits nonzero for dirty-tree condition. Its dirty-path list (`proofs.md:4`) is narrower than current `git status --short --branch`. Full Build gate is specified at `tasks.md:29` but not evidenced in `proofs.md:41-45`. | Re-run the proof and complete Build gate against an exact clean committed snapshot; update the proof ledger from that run. | No — open |
-| P1 — Browser/UAT evidence missing | `spec.md:115-119`; `tasks.md:125`; simulated focus/geometry only in `tests/frontend/onboarding.test.cjs:104-175,185-280`. No browser screenshots or full guide × viewport × theme run. | Perform authorized browser/a11y UAT across required guides, viewports, and themes; attach real captures and record any inaccessible states. | No — open |
-| P1 — Installer and live-service evidence missing | `tests/test_root_launcher.py:41-64,72-93` uses `-CheckOnly`; Ollama harness results are recorded in `proofs.md:109-146`. No clean installer-first-run, vendor installation, live model pull/inference, or corporate-data evidence. Scope: `spec.md:128-139`. | Run the clean isolated installer/startup path and live local-model checks when available and authorized; report only observed results. | No — open |
-| P1 — Discrimination sensor not run | Active TLC `validate.md:78-108` requires scratch-only mutations after a passing gate; current proof gate is nonzero. | After the proof gate passes, run targeted scratch mutations, record killed/survived outcomes, and verify the real worktree baseline is unchanged. | No — open |
+| `normalizeState` crashes with an uncaught `TypeError` when `localStorage["ecobi.onboarding.v1"]` contains the valid JSON literal `"null"`, breaking onboarding startup instead of resetting invalid state (spec Implicit-Requirement Sweep: "testar arquivos inválidos e estado de onboarding inválido") | `frontend/onboarding.js:102-111` parses `"null"` to `null` without throwing and dereferences `saved.version`; `tests/frontend/onboarding.test.cjs:58-64` tests only syntax-invalid `"invalid"` and version `"0.9"` | Guard `normalizeState` so non-object/null/array JSON falls back to `{}` (`if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};`) and assert `"null"` resets to default state in `tests/frontend/onboarding.test.cjs` | `fba5520` (C6) |
+| C7's selected proof does not fail if `/static/onboarding.js` is not served | `tasks.md:230-231` binds C7 ("serves the navbar/sidebar help controls and local controller asset") only to `tests/test_finalization_frontend.py::test_application_shell_loads_onboarding_controller`, which only calls `GET /` and never requests `/static/onboarding.js` | Add `Proof: run shell \| test_onboarding_controller_is_served_as_local_static_asset PASSED` to C7 in `.specs/features/ecobi-finalization/tasks.md` and rerun `check_proofs.py` | `fba5520` (C7) |
