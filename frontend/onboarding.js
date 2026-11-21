@@ -241,6 +241,7 @@
     function setBackdropHole(spotRect) {
       if (!backdrop) return;
       backdrop.hidden = false;
+      if (backdrop.removeAttribute) backdrop.removeAttribute("hidden");
       if (backdrop.style) backdrop.style.display = "block";
       if (backdrop.setAttribute) {
         backdrop.setAttribute("viewBox", `0 0 ${global.innerWidth} ${global.innerHeight}`);
@@ -268,6 +269,7 @@
       }
       if (backdrop) {
         backdrop.hidden = true;
+        if (backdrop.setAttribute) backdrop.setAttribute("hidden", "");
         if (backdrop.style) backdrop.style.display = "none";
       }
       if (spot) spot.hidden = true;

@@ -237,8 +237,12 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
       return this.hidden ? { width: 0, height: 0 } : { width: 300, height: panelHeight };
     }
   };
-  const backdropAttrs = new Map();
-  const backdrop = { hidden: true, setAttribute(name, value) { backdropAttrs.set(name, value); } };
+  const backdropAttrs = new Map([["hidden", ""]]);
+  const backdrop = {
+    hidden: true,
+    setAttribute(name, value) { backdropAttrs.set(name, value); },
+    removeAttribute(name) { backdropAttrs.delete(name); }
+  };
   const cutoutAttrs = new Map();
   const cutoutHole = { setAttribute(name, value) { cutoutAttrs.set(name, value); } };
   const spot = { hidden: true, style: {} };
@@ -292,6 +296,7 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
     assert.equal(panelMeasuredWhileHidden, false);
     assert.equal(panel.dataset.placement, "bottom");
     assert.equal(backdrop.hidden, false);
+    assert.equal(backdropAttrs.has("hidden"), false);
     assert.equal(spot.hidden, false);
     assert.equal(cutoutAttrs.get("x"), "44");
     assert.equal(cutoutAttrs.get("y"), "74");
@@ -349,15 +354,18 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
     // Calling openHelp() during an active tour closes tour overlays before opening chooser
     panel.hidden = false;
     backdrop.hidden = false;
+    backdropAttrs.delete("hidden");
     spot.hidden = false;
     onboarding.openHelp();
     assert.equal(panel.hidden, true);
     assert.equal(backdrop.hidden, true);
+    assert.equal(backdropAttrs.has("hidden"), true);
     assert.equal(spot.hidden, true);
     assert.equal(chooser.hidden, false);
     handlers.get("keydown")({ key: "Escape" });
     assert.equal(chooser.hidden, true);
     assert.equal(backdrop.hidden, true);
+    assert.equal(backdropAttrs.has("hidden"), true);
 
     // CSS contract: no vertical scrollbar, fixed height, no 9999px shadow dimming spotlight, single-row footer, hidden overlays display:none
     const styles = fs.readFileSync("frontend/styles.css", "utf8");
