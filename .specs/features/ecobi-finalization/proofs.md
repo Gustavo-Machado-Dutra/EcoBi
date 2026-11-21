@@ -1,9 +1,9 @@
 # ecobi-finalization proofs
 
-**HEAD**: acc416c
+**HEAD**: ac78486
 **Tree**: clean
 **Shell**: C:/Program Files/Git\bin\bash.exe
-**Result**: 39 pass, 0 fail
+**Result**: 40 pass, 0 fail
 
 | Check | Proof | Result |
 | --- | --- | --- |
@@ -19,6 +19,7 @@
 | C6 | `run onboarding / stored onboarding preferences are versioned and non-sensitive` | pass |
 | C6 | `run onboarding / welcome and tour preserve non-modal keyboard navigation while help remains modal` | pass |
 | C7 | `run shell / test_application_shell_loads_onboarding_controller PASSED` | pass |
+| C7 | `run shell / test_onboarding_controller_is_served_as_local_static_asset PASSED` | pass |
 | C8 | `run flows / test_corrupted_file_rejected_cleanly PASSED` | pass |
 | C8 | `run flows / test_canonical_mapping_save_and_reapply PASSED` | pass |
 | C9 | `run flows / test_simulation_outputs_separated_and_bounds_validated PASSED` | pass |
@@ -66,7 +67,7 @@ tests/test_phase4_packaging_scheduler_multiproject.py::test_c21_windows_launcher
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1 passed, 10 deselected, 1 warning in 4.83s =================
+================= 1 passed, 10 deselected, 1 warning in 4.92s =================
 ```
 
 `Run root-launcher` - exit 0
@@ -86,7 +87,7 @@ tests/test_root_launcher.py::test_root_start_script_serves_health_and_onboarding
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 3 passed, 1 warning in 27.60s ========================
+======================== 3 passed, 1 warning in 27.40s ========================
 ```
 
 `Run launcher-bind` - exit 0
@@ -106,7 +107,7 @@ tests/test_local_network_security.py::test_launcher_rejects_network_bind_hosts_b
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1 passed, 9 deselected, 1 warning in 1.85s ==================
+================= 1 passed, 9 deselected, 1 warning in 1.89s ==================
 ```
 
 `Run local-ai` - exit 0
@@ -126,7 +127,7 @@ tests/test_phase4_packaging_scheduler_multiproject.py::test_c25_external_ai_is_b
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 5 passed, 6 deselected, 1 warning in 3.38s ==================
+================= 5 passed, 6 deselected, 1 warning in 3.14s ==================
 ```
 
 `Run ollama-bootstrap` - exit 0
@@ -146,7 +147,7 @@ tests/test_ollama_bootstrap.py::test_unverifiable_or_private_ollama_listener_use
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 14 passed, 1 warning in 15.25s ========================
+======================= 14 passed, 1 warning in 14.85s ========================
 ```
 
 `Run flows` - exit 0
@@ -166,19 +167,19 @@ tests/test_security_memory_api.py::test_session_expiration_and_revocation_remain
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================== 36 passed, 1 warning in 110.71s (0:01:50) ==================
+================== 36 passed, 1 warning in 111.91s (0:01:51) ==================
 ```
 
 `Run onboarding` - exit 0
 
 ```
-✔ general guide covers all 18 documented topics and module targets (2.4477ms)
-✔ contextual guides cover all twelve existing views (2.2737ms)
-✔ stored onboarding preferences are versioned and non-sensitive (0.3786ms)
-✔ welcome and tour preserve non-modal keyboard navigation while help remains modal (1.2465ms)
-✔ tour spotlight and panel remain within the viewport after resize (2.7504ms)
-✔ general tour controls navigate only existing views, issue no controller-owned fetches, and persist completion (1.6071ms)
-✔ general tour uses real navigation without business writes or project changes (13.8375ms)
+✔ general guide covers all 18 documented topics and module targets (2.4227ms)
+✔ contextual guides cover all twelve existing views (2.3396ms)
+✔ stored onboarding preferences are versioned and non-sensitive (0.4502ms)
+✔ welcome and tour preserve non-modal keyboard navigation while help remains modal (1.2709ms)
+✔ tour spotlight and panel remain within the viewport after resize (2.8507ms)
+✔ general tour controls navigate only existing views, issue no controller-owned fetches, and persist completion (1.8706ms)
+✔ general tour uses real navigation without business writes or project changes (12.4194ms)
 ℹ tests 7
 ℹ suites 0
 ℹ pass 7
@@ -186,7 +187,7 @@ tests/test_security_memory_api.py::test_session_expiration_and_revocation_remain
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 160.6047
+ℹ duration_ms 151.1659
 ```
 
 `Run shell` - exit 0
@@ -206,7 +207,7 @@ tests/test_finalization_frontend.py::test_onboarding_controller_is_served_as_loc
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 2 passed, 1 warning in 1.58s =========================
+======================== 2 passed, 1 warning in 1.04s =========================
 ```
 
 `Run quality` - exit 0
@@ -226,7 +227,7 @@ tests/test_powerbi_generator.py::test_pbip_deduplicates_repeated_analyses_preser
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 3 passed, 1 warning in 12.53s ========================
+======================== 3 passed, 1 warning in 11.30s ========================
 ```
 
 `Run suite` - exit 0
@@ -246,7 +247,7 @@ tests/test_validation_engine.py::test_mathematical_discrepancy_triggers_rejectio
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================== 77 passed, 1 warning in 266.93s (0:04:26) ==================
+================== 77 passed, 1 warning in 278.80s (0:04:38) ==================
 ```
 
 `Run api-e2e` - exit 0
@@ -266,7 +267,7 @@ tests/test_finalization_e2e.py::test_upload_under_tight_host_ram_and_clean_rollb
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 3 passed, 1 warning in 23.74s ========================
+======================== 3 passed, 1 warning in 24.40s ========================
 ```
 
 `Run reupload-collision` - exit 0
@@ -286,5 +287,5 @@ tests/test_data_quality.py::test_concurrent_same_filename_ingests_use_distinct_s
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1 passed, 5 deselected, 1 warning in 2.63s ==================
+================= 1 passed, 5 deselected, 1 warning in 2.56s ==================
 ```
