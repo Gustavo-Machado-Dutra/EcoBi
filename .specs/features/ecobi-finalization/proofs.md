@@ -1,6 +1,6 @@
 # ecobi-finalization proofs
 
-**HEAD**: ac78486
+**HEAD**: 1c1f6e1
 **Tree**: clean
 **Shell**: C:/Program Files/Git\bin\bash.exe
 **Result**: 40 pass, 0 fail
@@ -67,7 +67,7 @@ tests/test_phase4_packaging_scheduler_multiproject.py::test_c21_windows_launcher
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1 passed, 10 deselected, 1 warning in 4.92s =================
+================= 1 passed, 10 deselected, 1 warning in 4.86s =================
 ```
 
 `Run root-launcher` - exit 0
@@ -87,7 +87,7 @@ tests/test_root_launcher.py::test_root_start_script_serves_health_and_onboarding
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 3 passed, 1 warning in 27.40s ========================
+======================== 3 passed, 1 warning in 28.33s ========================
 ```
 
 `Run launcher-bind` - exit 0
@@ -107,7 +107,7 @@ tests/test_local_network_security.py::test_launcher_rejects_network_bind_hosts_b
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1 passed, 9 deselected, 1 warning in 1.89s ==================
+================= 1 passed, 9 deselected, 1 warning in 1.82s ==================
 ```
 
 `Run local-ai` - exit 0
@@ -127,7 +127,7 @@ tests/test_phase4_packaging_scheduler_multiproject.py::test_c25_external_ai_is_b
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 5 passed, 6 deselected, 1 warning in 3.14s ==================
+================= 5 passed, 6 deselected, 1 warning in 2.10s ==================
 ```
 
 `Run ollama-bootstrap` - exit 0
@@ -147,7 +147,7 @@ tests/test_ollama_bootstrap.py::test_unverifiable_or_private_ollama_listener_use
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 14 passed, 1 warning in 14.85s ========================
+======================= 14 passed, 1 warning in 15.10s ========================
 ```
 
 `Run flows` - exit 0
@@ -167,19 +167,19 @@ tests/test_security_memory_api.py::test_session_expiration_and_revocation_remain
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================== 36 passed, 1 warning in 111.91s (0:01:51) ==================
+================== 36 passed, 1 warning in 119.78s (0:01:59) ==================
 ```
 
 `Run onboarding` - exit 0
 
 ```
-✔ general guide covers all 18 documented topics and module targets (2.4227ms)
-✔ contextual guides cover all twelve existing views (2.3396ms)
-✔ stored onboarding preferences are versioned and non-sensitive (0.4502ms)
-✔ welcome and tour preserve non-modal keyboard navigation while help remains modal (1.2709ms)
-✔ tour spotlight and panel remain within the viewport after resize (2.8507ms)
-✔ general tour controls navigate only existing views, issue no controller-owned fetches, and persist completion (1.8706ms)
-✔ general tour uses real navigation without business writes or project changes (12.4194ms)
+✔ general guide covers all 18 documented topics in 5 chapters and module targets (2.7693ms)
+✔ contextual guides cover all twelve existing views (2.4362ms)
+✔ stored onboarding preferences are versioned and non-sensitive (0.4616ms)
+✔ welcome and tour preserve non-modal keyboard navigation while help remains modal (1.2394ms)
+✔ tour spotlight and panel remain within the viewport after resize (3.0412ms)
+✔ general tour controls navigate only existing views, issue no controller-owned fetches, and persist completion (1.8083ms)
+✔ general tour uses real navigation without business writes or project changes (14.4564ms)
 ℹ tests 7
 ℹ suites 0
 ℹ pass 7
@@ -187,7 +187,7 @@ tests/test_security_memory_api.py::test_session_expiration_and_revocation_remain
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 151.1659
+ℹ duration_ms 170.5236
 ```
 
 `Run shell` - exit 0
@@ -207,7 +207,7 @@ tests/test_finalization_frontend.py::test_onboarding_controller_is_served_as_loc
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 2 passed, 1 warning in 1.04s =========================
+======================== 2 passed, 1 warning in 1.58s =========================
 ```
 
 `Run quality` - exit 0
@@ -227,7 +227,7 @@ tests/test_powerbi_generator.py::test_pbip_deduplicates_repeated_analyses_preser
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 3 passed, 1 warning in 11.30s ========================
+======================== 3 passed, 1 warning in 13.21s ========================
 ```
 
 `Run suite` - exit 0
@@ -247,7 +247,7 @@ tests/test_validation_engine.py::test_mathematical_discrepancy_triggers_rejectio
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================== 77 passed, 1 warning in 278.80s (0:04:38) ==================
+================== 77 passed, 1 warning in 282.92s (0:04:42) ==================
 ```
 
 `Run api-e2e` - exit 0
@@ -267,7 +267,7 @@ tests/test_finalization_e2e.py::test_upload_under_tight_host_ram_and_clean_rollb
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 3 passed, 1 warning in 24.40s ========================
+======================== 3 passed, 1 warning in 26.67s ========================
 ```
 
 `Run reupload-collision` - exit 0
@@ -287,5 +287,5 @@ tests/test_data_quality.py::test_concurrent_same_filename_ingests_use_distinct_s
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================= 1 passed, 5 deselected, 1 warning in 2.56s ==================
+================= 1 passed, 5 deselected, 1 warning in 3.03s ==================
 ```
