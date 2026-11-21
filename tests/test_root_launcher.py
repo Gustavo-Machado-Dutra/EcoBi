@@ -128,3 +128,96 @@ def test_start_ecobi_accepts_python_3_11_plus_and_checks_declared_imports(tmp_pa
     )
     assert ast_check.returncode == 0, ast_check.stdout + ast_check.stderr
     assert "AST_OK" in ast_check.stdout
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="The supported launcher is a Windows PowerShell entry point.")
+def test_root_start_script_serves_health_and_onboarding_then_shuts_down_cleanly(tmp_path: Path) -> None:
+    import socket
+    import time
+    import httpx
+
+    project_root = Path(__file__).resolve().parent.parent
+    isolated_root = tmp_path / "live_project"
+    python_scripts_dir = isolated_root / ".venv" / "Scripts"
+    python_scripts_dir.mkdir(parents=True)
+
+    for relative_path in (
+        Path("start.ps1"),
+        Path("scripts/start_ecobi.ps1"),
+        Path("scripts/ecobi_launcher.py"),
+        Path("scripts/ollama_bootstrap.ps1"),
+    ):
+        destination = isolated_root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(project_root / relative_path, destination)
+
+    for folder in ("backend", "frontend", "samples"):
+        shutil.copytree(
+            project_root / folder,
+            isolated_root / folder,
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
+
+    python_executable = Path(sys.executable)
+    shutil.copy2(python_executable, python_scripts_dir / "python.exe")
+    shutil.copy2(python_executable.parents[1] / "pyvenv.cfg", isolated_root / ".venv" / "pyvenv.cfg")
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+
+    environment = os.environ.copy()
+    site_packages = python_executable.parents[1] / "Lib" / "site-packages"
+    environment["PYTHONPATH"] = os.pathsep.join((str(site_packages), str(isolated_root)))
+    environment["ECOBI_DATA_DIR"] = str(isolated_root / "data" / "runtime")
+    environment["ECOBI_EXPORTS_DIR"] = str(isolated_root / "data" / "powerbi_exports")
+    environment["ECOBI_DB_PATH"] = str(isolated_root / "data" / "runtime" / "ecobi.db")
+
+    proc = subprocess.Popen(
+        [
+            "powershell.exe",
+            "-NoLogo",
+            "-NoProfile",
+            "-File",
+            str(isolated_root / "start.ps1"),
+            "-Port",
+            str(port),
+            "-NoBrowser",
+        ],
+        cwd=isolated_root,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    try:
+        base_url = f"http://127.0.0.1:{port}"
+        deadline = time.time() + 40
+        health_data = None
+        while time.time() < deadline:
+            try:
+                resp = httpx.get(f"{base_url}/api/health", timeout=2.0, trust_env=False)
+                if resp.status_code == 200:
+                    health_data = resp.json()
+                    break
+            except Exception:
+                time.sleep(0.4)
+        assert health_data is not None, "Isolated start.ps1 server did not become healthy"
+        assert health_data["block_external_ai"] is True
+        onb = httpx.get(f"{base_url}/static/onboarding.js", timeout=5.0, trust_env=False)
+        assert onb.status_code == 200
+        assert "eco-tour-cutout-mask" in onb.text
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+
+    isolated_db = isolated_root / "data" / "runtime" / "ecobi.db"
+    assert isolated_db.is_file()
+    with sqlite3.connect(isolated_db) as conn:
+        assert conn.execute("PRAGMA integrity_check;").fetchall() == [("ok",)]
+        assert conn.execute("PRAGMA journal_mode;").fetchone()[0].lower() == "wal"
+        assert conn.execute("PRAGMA foreign_key_check;").fetchall() == []
