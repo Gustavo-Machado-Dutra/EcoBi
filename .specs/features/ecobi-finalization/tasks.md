@@ -229,6 +229,7 @@ Proof: run onboarding | welcome and tour preserve non-modal keyboard navigation 
 
 **C7** - Real application shell serves the navbar/sidebar help controls and local controller asset (ONB-11)
 Proof: run shell | test_application_shell_loads_onboarding_controller PASSED
+Proof: run shell | test_onboarding_controller_is_served_as_local_static_asset PASSED
 
 **C8** - Malformed uploads are rejected and canonical mappings persist and reapply (MOD-03, MOD-04)
 Proof: run flows | test_corrupted_file_rejected_cleanly PASSED

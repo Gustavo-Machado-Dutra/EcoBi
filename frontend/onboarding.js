@@ -102,6 +102,7 @@
   function normalizeState(storage, version = VERSION) {
     let saved = {};
     try { saved = JSON.parse(storage.getItem(STORAGE_KEY) || "{}"); } catch (_) { saved = {}; }
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
     return {
       version,
       introDismissed: saved.version === version && saved.introDismissed === true,

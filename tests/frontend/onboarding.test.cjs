@@ -60,6 +60,9 @@ test("stored onboarding preferences are versioned and non-sensitive", () => {
   const state = onboarding.normalizeState({ getItem: (key) => values.get(key) || null });
   assert.deepEqual(state, { version: "1.0.0", introDismissed: true, completed: true, progress: 3 });
   assert.deepEqual(onboarding.normalizeState({ getItem: () => "invalid" }), { version: "1.0.0", introDismissed: false, completed: false, progress: 0 });
+  assert.deepEqual(onboarding.normalizeState({ getItem: () => "null" }), { version: "1.0.0", introDismissed: false, completed: false, progress: 0 });
+  assert.deepEqual(onboarding.normalizeState({ getItem: () => "[]" }), { version: "1.0.0", introDismissed: false, completed: false, progress: 0 });
+  assert.deepEqual(onboarding.normalizeState({ getItem: () => "42" }), { version: "1.0.0", introDismissed: false, completed: false, progress: 0 });
   assert.deepEqual(onboarding.normalizeState({ getItem: () => JSON.stringify({ version: "0.9", introDismissed: true, progress: 9 }) }), { version: "1.0.0", introDismissed: false, completed: false, progress: 0 });
 });
 
