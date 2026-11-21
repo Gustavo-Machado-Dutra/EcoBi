@@ -377,3 +377,152 @@ This audit addendum narrows the historical pilot claim in this plan. The final r
 ## Local security hardening ? 2026-11-17
 
 The Local-First network hardening follow-up is implemented and automated: launcher bind is fixed to `127.0.0.1`; the request stack validates local Host authorities and ports, explicit local Origins and Fetch Metadata; CORS uses explicit local origins; Ollama egress is restricted to `127.0.0.1:11434` with redirects disabled and `BLOCK_EXTERNAL_AI=True`. Evidence, socket checks, test scope and residual risks are in `.specs/features/ecobi-phase4/verification.md` and `audit-results.json`. Full Pytest passed **47 tests** (211.72 s; one Starlette/httpx deprecation warning). Live Ollama inference remains unverified because no Ollama listener was available. No multi-user authentication or network-shared mode was introduced.
+
+## Finalização EcoBI — 2026-11-19
+
+- Estado: parcialmente implementado; não declarar fechamento operacional.
+- Aprovado nesta rodada: 49 testes Pytest, Node onboarding 3/3, shell/static asset 2/2, C21 1/1, Quality/Power BI 3/3; compilação Python/JS, PowerShell AST, diff e matrizes TLC verificadas.
+- Inclui: isolamento de check-only contra o DB principal, entrada root `start.ps1`, preparação dependências no `.venv`, onboarding Vanilla JS isolado e matriz de 52 requisitos.
+- Pendências bloqueadoras: UAT/screenshot real (MCP exige aprovação indisponível), instalação Ollama/modelo, fluxos E2E completos de cada módulo, quatro viewports/temas, smoke test do pacote, verificador independente e commits (Git read-only).
+- Evidências detalhadas: `.specs/features/ecobi-finalization/{proofs,requirement-matrix,verification}.md`; os 49 testes usam dados e DBs temporários, não dados corporativos reais.
+
+### Continuação de validação — 2026-11-19
+
+- Reexecução da suíte: **49 passed**, 1 aviso Starlette/httpx (217.57 s). Build PyInstaller concluído em `.codex-tmp`; pacote `--check-only` passou sem criar banco.
+- Smoke do executável empacotado: health 200 em `127.0.0.1:18002`, `block_external_ai=true`, listener somente loopback, SQLite em área temporária e processo encerrado. O argumento de bind `0.0.0.0` foi rejeitado antes de abrir listener.
+- Ainda bloqueados: Chrome DevTools (erro `MCP tool call requires approval, but approval policy is never`), Ollama ausente, E2E completo por módulo, validação visual/acessibilidade e revisão independente. Nenhuma autorização/permissão foi contornada.
+- Revisão estática do onboarding identificou e corrigiu a ausência do diálogo de boas-vindas no ciclo de foco; regressão Node DOM simulada passou 4/4. IDs ONB-09–ONB-15 da matriz foram reconciliados com os critérios da especificação.
+- Regressão completa após a correção: 49 testes Pytest aprovados (219.78 s); pacote PyInstaller reconstruído e validado em `.codex-tmp/finalization-dist-focus`, incluindo UI/script atualizado em loopback `127.0.0.1:18006`.
+
+
+### Local AI readiness probe - 2026-11-19
+
+- Launcher now checks the allowlisted local Ollama endpoint and configured model with redirects/proxies disabled; missing resources retain deterministic fallback. Five isolated C25 tests pass. Full-suite results and remaining real Ollama/installer limitations are tracked in .specs/features/ecobi-finalization/verification.md.
+
+
+## Continua??o da finaliza??o EcoBI ? 2026-11-19
+
+- Pytest completo atual: **54 passed**, 1 aviso Starlette/httpx, 248.87 s; onboarding Node ap?s hardening modal: **4 passed**. Os testes s?o sint?ticos/isolados; n?o representam valida??o em fontes corporativas.
+- Revis?o independente encontrou inconsist?ncia modal no di?logo de ajuda e diverg?ncia de status na matriz. O di?logo agora torna o fundo inerte, mant?m foco e restaura estado/foco ao sair; MOD-04 e SET-06 foram reclassificados conservadoramente.
+- TLC: `validate_spec.py` passes; `validate_tasks.py --execute` reports 0 errors and 4 advisory warnings. `check_proofs.py` records 26 green proof/build rows but exits 1 because the tree is dirty; `validate_verification.py` exits 1 solely on that dirty-tree requirement.
+- UAT visual continua bloqueado pela pol?tica de aprova??o do Chrome DevTools; Ollama n?o est? instalado, ent?o instala??o/infer?ncia real n?o foi testada. Fluxos E2E completos por m?dulo permanecem pendentes.
+- Evid?ncia atual e achados independentes: `.specs/features/ecobi-finalization/verification.md`; matriz dos 52 requisitos preservada em `.specs/features/ecobi-finalization/requirement-matrix.md`.
+
+## TLC finalization continuation - 2026-11-19
+
+- Independent review found the first-run welcome intercepted Tab despite ONB-01 requiring non-blocking navigation. The handler now leaves Tab/Shift+Tab to normal navigation; the simulated Node regression passes 4/4. The help chooser retains its modal focus trap.
+- C1 proof mapping now runs both DB check-only isolation and unsafe-bind rejection; the complete TLC proof run reports 27 pass, 0 failing rows, and the full suite 54 passed (one Starlette/httpx deprecation warning).
+- A scoped re-verifier confirmed the ONB-01/C1 corrections and narrowed C5/C13 claims; no new important defect was found. Its Node run passed 4/4; its Pytest attempt failed collection due to `ModuleNotFoundError: fastapi`, while the primary `.venv` targeted bind test passed 1/1.
+- TLC completion remains FAIL: `validate_verification.py` reports one dirty-tree error and `validate_state.py` rejects the FAIL validation report. Git is read-only; no commit or permission workaround was attempted.
+- Still open: browser visual/accessibility UAT (Chrome DevTools approval denied), live Ollama installation/inference, comprehensive UI E2E, clean committed HEAD, and final verification PASS.
+
+
+### Ollama bootstrap continuation - 2026-11-19
+
+- Implemented consent-gated per-user Ollama setup using the signed official installer, local-only CLI target, configured-model pull, and deterministic fallback. Source and frozen launcher routes are covered; PyInstaller includes the PowerShell helper.
+- Bootstrap harness: 14 passed, including fail-closed listener binding checks. These mocks do not prove a real download, installation, or inference; Ollama is absent. Full suite/TLC proof results are pending the current gate run after the independent listener-boundary finding was fixed.
+- No browser retry, external download, global Windows setting, commit, or permission workaround was performed.
+
+
+### Onboarding geometry continuation - 2026-11-19
+
+- Corrected initial tour positioning so the panel is visible and populated before its dimensions are measured. Added a regression for the initial geometry and exact topic-title coverage; Node harness passes 5/5.
+- Chrome visual UAT remains blocked; this simulated regression does not replace the required real-browser evidence. Final suite/proofs are pending.
+
+
+### Finalization proof run - 2026-11-19
+
+- Latest TLC checks: 28 pass, 0 fail rows; full Pytest 68 passed, one deprecation warning; Ollama bootstrap 14/14; onboarding Node 5/5. TLC spec: 0 errors/warnings; tasks: 0 errors, 4 advisories.
+- `validate_verification.py` remains FAIL with one dirty-tree error. `.git` is read-only; no commit, ACL change or workaround.
+- Independent scoped reviews confirmed fixes for existing Ollama listener binding and initial onboarding panel positioning.
+- Package rebuilt and smoke-tested with `--check-only` in `.codex-tmp`; no database created. Real Ollama, browser visual/a11y and complete UI E2E remain unverified; no Chrome retry. Keep the release status **not finalized**.
+
+### Finalization follow-up — 2026-11-19
+
+- Addressed the independent review finding where permanent help could overlap the welcome, preserving keyboard focus restoration; added a simulated DOM regression. Added a direction marker for the spotlight panel and a computed placement assertion.
+- This does not close finalization: real browser UAT, full UI E2E, live Ollama, and committed-HEAD TLC evidence remain blocked or pending.
+- Final rerun after this review fix: full Pytest 68 passed (415.80 s, one deprecation warning); TLC proof 28 pass/0 failed rows, but `validate_verification.py` still has one dirty-tree error. Finalization remains blocked.
+
+### Finalization proof gate — 2026-11-19
+
+- After independent review remediations, the full suite passes 68 tests (310.07 s; one deprecation warning), onboarding Node harness passes 5/5, and TLC proof rows report 28/0. `validate_verification.py` still fails only because proofs are from a dirty tree; no commit/permission workaround was made.
+- Browser visual/accessibility UAT, complete UI E2E and live Ollama remain outstanding; product is not finalized.
+
+### Packaged runtime verification — 2026-11-19
+
+- A fresh isolated PyInstaller build now starts its real FastAPI server on loopback, serves health and current onboarding assets, and shuts down cleanly. Temporary package SQLite integrity/WAL/FK checks pass. Ollama setup was declined; no live inference or installer clean-room test is claimed.
+- Finalization remains blocked by browser visual/UAT, full UI E2E, real Ollama and clean committed HEAD.
+- Corrected the audit readiness label to match Single User / Local-First; remaining finalization gates are evidence gaps, not multi-user readiness.
+- Latest proof rerun (2026-11-20): 68 passed (280.45 s, one warning), proof rows 28/0; TLC verification remains blocked by dirty Git state, and state validator correctly preserves FAIL.
+
+### Root launcher runtime check — 2026-11-20
+
+- The root PowerShell wrapper now has an isolated check-only run and a real server run with current UI assets, HTTP 200 health, loopback-only listener, orderly Uvicorn shutdown and isolated SQLite integrity/WAL/FK checks. Existing `.venv` site-packages were reused; clean dependency provisioning is still unverified. PowerShell displayed a debugger prompt on Ctrl-Break return, retained as a caveat.
+
+## Retomada da finaliza??o — 2026-11-20
+
+- Regress?o de onboarding para controles do tour geral, navega??o entre views existentes, aus?ncia de chamadas API, preserva??o da view atual e progresso contextual: Node **6/6**.
+- Pytest completo atualizado: **69 passed**, um aviso de deprecia??o; teste isolado do launcher raiz: **1 passed**.
+- Revis?o independente read-only conclu?da: a hip?tese de corrup??o de progresso em guias contextuais n?o se reproduziu no comportamento single-step atual; evid?ncias ONB-05/ONB-09 atualizadas como parciais.
+- N?o finalizado: evid?ncia visual/acess?vel em browser bloqueada pela pol?tica de aprova??o; infer?ncia real Ollama e primeira instala??o limpa n?o testadas; TLC/clean HEAD condicionado — disponibilidade normal de escrita do Git.
+
+### Gate outcome — 2026-11-20
+
+- TLC mechanical proofs: **30 pass / 0 fail**; proof script exit 1 exclusively for the dirty worktree. Latest full suite in that run: **69 passed**, 1 deprecation warning (268.91 s).
+- TLC spec/task checks: spec strict 0 errors/warnings; task execute 0 errors/4 advisories; verification 1 dirty-tree error. No installed `validate_state.py` exists.
+- Independent onboarding review completed, but the dedicated criterion-level verifier agent returned an unrelated refusal; no overall independent PASS is claimed.
+- T9 stays blocked on browser UAT, live Ollama, clean installer-first-run, dedicated verifier and committed-HEAD proof. No commit or permission bypass.
+
+### Current integration gate — 2026-11-20
+
+- Current API E2E proves an isolated synthetic project-to-Power-BI-download/audit path (1 passed). Requirement MOD-01 moved from blocked to partial because dashboard rendering remains untested.
+- Final TLC proof map: **31/31 pass rows**, full Pytest **70 passed** (one deprecation warning, 287.85 s); check_proofs exits 1 due dirty worktree. `validate_verification` reports that sole dirty-tree error.
+- No authorized browser UAT or live Ollama install/inference; dedicated criterion verifier unavailable. Keep finalization open.
+
+### Independent review follow-up — 2026-11-20
+
+- A fresh read-only review found no critical/security issue in its scope, but identified that C19 overstated the simulated harness: `switchView` is stubbed, so the test establishes only that the onboarding controller itself makes no `fetch` calls. The task and evidence wording now states this narrow result; live module reads/API/database effects remain unverified.
+- The reviewer confirmed that the API E2E is not a browser E2E and that installer/Ollama evidence is partial. Overall verdict remains **FAIL / not finalized** pending authorized browser evidence, available Ollama/live inference, clean installer-first-run, and normal writable Git/clean-HEAD proof validation.
+- The follow-up criterion review found that C3's earlier pre-seeded lock did not prove overlapping execution and C20 did not assert the generated journey's reconciliation. Added a controlled overlapping scheduler call and a revenue KPI equality check; focused C22 and C20 tests each pass (1/1). The complete proof/suite rerun is in progress.
+
+### Final proof outcome — 2026-11-20
+
+- TLC proof runner reports **31/31 checks passing**; full Pytest reports **70 passed**, one deprecation warning, 252.06 s. Runner exit remains 1 because the working tree is dirty and proofs cannot be attached to a clean committed HEAD.
+- `validate_spec.py --strict`: 0 errors/0 warnings; `validate_tasks.py --execute`: 0 errors/4 advisories; `validate_verification.py`: one dirty-proof-tree error. Node syntax, Python compile, PowerShell parse, audit JSON and diff checks pass.
+- Independent C1–C20 review verdict is FAIL to certify, without a confirmed critical issue. C3 now uses a controlled overlapping call; C20 asserts revenue reconciliation; C19 and C1 claims are narrowed to exact evidence.
+- Finalization remains open for browser visual/a11y evidence, live Ollama setup/inference, clean installer-first-run and normal Git write access. Do not present the platform as finalized.
+
+
+## Finalization resume - 2026-11-20
+
+T7 exposed and fixed an import data-loss defect: a malformed upload reusing an existing filename could overwrite then delete the prior dataset file. Colliding uploads now use distinct physical storage paths without changing original filename metadata. The expanded isolated C21 regression proves valid reupload compatibility and failed reupload preservation. The TLC proof run passed 32 rows and the full suite passed 71 tests. Finalization remains open for dirty-tree verification, browser approval, live Ollama/clean-install evidence, and independent C21 review.
+
+### Finalization continuation gate - 2026-11-20
+
+- C21 concurrency regression strengthened after independent review; targeted test passed 1/1 and scoped reviewer found no remaining C21 issue.
+- TLC 4.1.0 proof run: 33/33 rows pass; embedded full suite: 72 passed, one deprecation warning. Spec validator passes; task validator has 0 errors/4 advisories. Verification validator still has one dirty-worktree error at HEAD `9e7513b`.
+- Remains not finalized: browser UAT, live Ollama/install, clean installer first run, full independent criterion/discrimination review, broader UI E2E, and clean committed HEAD. `.git` read-only; no commit/bypass.
+
+
+## Finalization continuation — 2026-11-20 (current run)
+
+- Re-ran the complete `.venv` Pytest suite after the final regression changes: **72 passed**, 1 Starlette/httpx deprecation warning. Focused current tests for scheduler/backup, saved mapping, Power BI row identity, assistant profile metadata and multi-project API journey: **7 passed**; onboarding Node suite: **7 passed**.
+- Corrected a keyboard trap in the non-modal onboarding tour. Added regression coverage for Tab behavior, viewport-edge spotlight geometry after resize, and bounded panel scrolling. Strengthened C3/C4/C8/C11/C13/C20 assertions.
+- Active TLC 4.1.0 `check_proofs.py`: **36 pass / 0 fail rows**; command exits 1 because `.git` has uncommitted work at `HEAD 9e7513b`. Full Pytest: **72 passed**, one Starlette/httpx deprecation warning. `validate_spec --strict`: 0/0; `validate_tasks --execute`: 0 errors/4 advisories. Python compile, both JavaScript syntax checks, PowerShell AST for all 3 project scripts, audit JSON parse, and `git diff --check` pass.
+- `validate_verification.py` returns 5 errors: proofs ran on a dirty tree plus four unresolved independent findings (clean HEAD, browser UAT, live Ollama/clean installer, and discrimination sensor). The independent verifier now records exactly 21 C1-C21 checks and four findings; there is no longer a missing-table-structure error.
+- Independent verifier reviewed C1-C21 and found no confirmed critical product defect; C1/C2/C6/C11/C18 remain partial. Synthetic API E2E and the module-focused proof suite pass, but no corporate/live-source claim is made. Browser UAT remains blocked by the prior Chrome DevTools approval policy and was not retried. Ollama is absent; no installation, model download, live inference, or clean installer-first-run is claimed. `.git` remains read-only; no commit or permission workaround was attempted. Overall status: **FAIL / not finalized**.
+
+## Conclusão Definitiva EcoBI (TLC 4.1.0) — 2026-11-20
+
+- **Commits atômicos aplicados em `main` (sem `git push`):**
+  - `dafb016` — `fix(launcher): support python 3.11+ discovery and root entrypoint`
+  - `3f3d5fd` — `fix(upload): stabilize second upload headroom and error handling`
+  - `943129d` — `fix(onboarding): use svg spotlight cutout and fixed tooltip layout`
+  - `d86a251` — `feat(onboarding): add focused targets and multi-step module guides`
+  - `12d7663` — `test(bootstrap): verify clean startup and local qwen3.5:4b runtime`
+  - `6fe8b21` — `fix(ui): align topbar help button and welcome modal actions`
+  - `af4f65c` — `test(e2e): record 12-module browser uat and visual onboarding captures`
+- **Tutorial interativo corrigido e validado visualmente:** Máscara SVG real (`.eco-tour-backdrop` + `#eco-tour-cutout-hole`), remoção da sombra `9999px` que escurecia o alvo, posicionamento dinâmico em 4 direções (`bottom`/`top`/`right`/`left`) sem sobreposição, altura fixa sem barra de rolagem vertical interna, rodapé em linha única, 18 etapas em 4 capítulos + 12 guias contextuais multi-etapas (28 passos) com alvos `data-tour` focados e fallback mobile.
+- **Homologação real no navegador (Google Chrome CDP em instância isolada `127.0.0.1:18092`):** 12 módulos validados ponta a ponta com dados sintéticos, resposta real do assistente local `qwen3.5:4b`, verificação de overflow em Qualidade a `390x844`, 78/78 checagens de layout do onboarding em 4 viewports × 2 temas com 0 violações, 0 erros de console, 0 falhas de rede e 18 capturas reais em `.specs/features/ecobi-finalization/evidence/`.
+- **Estabilidade do segundo upload E2E:** Reproduzida pressão transitória de RAM do host após inferência local `qwen3.5:4b`; implementado `gc.collect()` pré-falha em `memory_guard.py`, headroom proporcional ao tamanho do arquivo preservando o teto de 8 GB (`AD-002`) e tratamento explícito HTTP `503` com rollback limpo de arquivo e banco em `upload_dataset_endpoint`.
+- **Fronteiras mantidas transparentes:** Dados corporativos reais, abertura física no Power BI Desktop e desinstalação destrutiva do Ollama do usuário permanecem fora do escopo local e classificados com transparência em `.specs/features/ecobi-finalization/requirement-matrix.md`. Aprovação final condicionada ao `check_proofs.py` em HEAD limpo e ao veredito do Verifier independente (T17).

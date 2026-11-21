@@ -139,3 +139,18 @@ Para validar a compilação e executar toda a suíte de testes unitários, de in
    - Caso o daemon local do Ollama (`127.0.0.1:11434`) não esteja em execução, o EcoBI Intelligence **não falha**: o assistente aciona automaticamente o roteador determinístico local auditado (`execution_mode: "deterministic_fallback"`), mantendo todas as 6 ferramentas analíticas operacionais.
 3. **Abertura de Projetos PBIP/PBIR no Power BI Desktop**:
    - O EcoBI gera e valida toda a estrutura aberta `.pbip` / `.pbir` (`model.bim`, `report.json`, `EcoBITheme.json`, CSVs reconciliados e pacote `.zip`). A renderização interativa final em janela desktop requer o **Microsoft Power BI Desktop** instalado na máquina Windows com o recurso de visualização *Power BI Project (.pbip)* habilitado.
+
+
+## Inicialização local no Windows
+
+### Estado da homologação final — 2026-11-20
+
+A suíte completa executada nesta retomada passou com **72 testes** e um aviso de depreciação Starlette/httpx. Os testes direcionados dos fluxos revisados passaram (**7**); o onboarding passou em Node (**7**). O TLC `check_proofs.py` registrou **36 provas aprovadas e 0 reprovadas**, mas retorna código não zero porque o worktree está sujo em `HEAD 9e7513b`; a verificação independente continua necessária.
+
+Não há evidência visual nova: o Chrome DevTools MCP exige aprovação indisponível nesta política, e nenhuma outra ferramenta foi usada para contornar a restrição. Ollama não está instalado, portanto instalação real, download de modelo e inferência local não foram comprovados. Os fluxos API usam fixtures sintéticas, e a instalação limpa ainda não foi executada. O EcoBI **não está declarado finalizado**. Consulte `.specs/features/ecobi-finalization/verification.md` e `.specs/features/ecobi-finalization/validation.md` para o estado e os bloqueios atuais.
+
+### Conclusão definitiva — 2026-11-20 (TLC 4.1.0)
+
+A rodada definitiva de conclusão validou o EcoBI em instância local isolada com navegador real (Google Chrome CDP), cobrindo os 12 módulos ponta a ponta, inferência local real com `qwen3.5:4b` (`BLOCK_EXTERNAL_AI=True`), estabilidade do segundo upload sob pressão de RAM, e o tutorial interativo com recorte SVG real, tooltip de altura fixa sem rolagem vertical e sem sobreposição nos 4 viewports (`1440×900`, `1280×800`, `768×1024`, `390×844`) em Light e Dark Mode (18 capturas reais em `.specs/features/ecobi-finalization/evidence/`). Dados corporativos reais e abertura física no Power BI Desktop permanecem fora do ambiente local de validação; consulte `.specs/features/ecobi-finalization/requirement-matrix.md` e `verification.md`.
+
+Execute `.\start.ps1` a partir da pasta do EcoBI, ou `.\start.ps1 -NoBrowser` para não abrir o navegador. O launcher usa o `.venv` do projeto; se ele não existir, localiza automaticamente Python 3.11+ (`py -3`, `py -3.11` ou `python`), cria o `.venv` e instala as dependências declaradas somente nesse ambiente. Quando Ollama ou `qwen3.5:4b` já estão disponíveis, o bootstrap reutiliza sem novo download; em caso de ausência ou falha, mantém o fallback determinístico local com `BLOCK_EXTERNAL_AI=True`.
