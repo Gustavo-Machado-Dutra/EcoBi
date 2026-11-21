@@ -24,25 +24,80 @@
   ];
 
   const generalSteps = [
-    { chapter: "Visão Geral", title: "EcoBI Intelligence", body: "Plataforma local para analisar dados corporativos sem enviar inferências a serviços externos.", target: '[data-tour="page-title"]' },
-    { chapter: "Visão Geral", title: "Barra de contexto", body: "O título acompanha o módulo atual e os controles operacionais permanecem acessíveis.", target: '[data-tour="topbar"]' },
-    { chapter: "Visão Geral", title: "Projeto ativo", body: "Selecione o projeto que organiza seu trabalho e isola datasets e análises.", target: '[data-tour="project-selector"]' },
-    { chapter: "Visão Geral", title: "Dataset ativo", body: "Escolha o conjunto de dados disponível no projeto selecionado.", target: '[data-tour="dataset-selector"]' },
-    { chapter: "Visão Geral", title: "Navegação", body: "A barra lateral reúne os 12 módulos por etapa do trabalho.", target: '[data-tour="sidebar"]' },
-    { chapter: "Dados", title: "Dashboard Executivo", body: modules[0][2], target: '[data-tour="module-view-dashboard"]', view: modules[0][0] },
-    { chapter: "Dados", title: "Importação", body: modules[2][2], target: '[data-tour="module-view-import"]', view: modules[2][0] },
-    { chapter: "Dados", title: "Qualidade e Schema", body: modules[3][2], target: '[data-tour="module-view-quality"]', view: modules[3][0] },
-    { chapter: "Análises & IA", title: "Análises financeiras e ESG", body: "As análises usam os dados disponíveis e mantêm cálculos determinísticos auditáveis.", target: '[data-tour="module-view-dashboard"]', view: modules[0][0] },
-    { chapter: "Análises & IA", title: "Assistente IA local", body: modules[4][2], target: '[data-tour="module-view-assistant"]', view: modules[4][0] },
-    { chapter: "Análises & IA", title: "Resultados Preditivos", body: modules[5][2], target: '[data-tour="module-view-predictive"]', view: modules[5][0] },
-    { chapter: "Análises & IA", title: "Simulações What-If", body: modules[6][2], target: '[data-tour="module-view-simulator"]', view: modules[6][0] },
-    { chapter: "Governança", title: "Validação", body: modules[7][2], target: '[data-tour="module-view-validation"]', view: modules[7][0] },
-    { chapter: "Governança", title: "Power BI", body: modules[8][2], target: '[data-tour="module-view-powerbi"]', view: modules[8][0] },
-    { chapter: "Governança", title: "Histórico e Auditoria", body: modules[9][2], target: '[data-tour="module-view-audit"]', view: modules[9][0] },
-    { chapter: "Operação", title: "Multiprojeto", body: modules[10][2], target: '[data-tour="module-view-multiproject"]', view: modules[10][0] },
-    { chapter: "Operação", title: "Automações", body: modules[11][2], target: '[data-tour="module-view-scheduler"]', view: modules[11][0] },
-    { chapter: "Operação", title: "Governança e segurança", body: "O processamento permanece local, com controle de memória de 8 GB e trilha de auditoria.", target: '[data-tour="ram-indicator"]' }
+    { chapter: "Vis\u00e3o Geral", title: "EcoBI Intelligence", body: "Plataforma local para analisar dados corporativos sem enviar infer\u00eancias a servi\u00e7os externos.", target: '[data-tour="page-title"]' },
+    { chapter: "Vis\u00e3o Geral", title: "Barra de contexto", body: "O t\u00edtulo acompanha o m\u00f3dulo atual e os controles operacionais ficam sempre acess\u00edveis.", target: '[data-tour="topbar"]' },
+    { chapter: "Vis\u00e3o Geral", title: "Projeto ativo", body: "Selecione o projeto que organiza seu trabalho e isola datasets e an\u00e1lises.", target: '[data-tour="project-selector"]' },
+    { chapter: "Vis\u00e3o Geral", title: "Dataset ativo", body: "Escolha o conjunto de dados dispon\u00edvel no projeto selecionado.", target: '[data-tour="dataset-selector"]' },
+    { chapter: "Vis\u00e3o Geral", title: "Navega\u00e7\u00e3o", body: "A barra lateral re\u00fane os 12 m\u00f3dulos organizados por etapa do fluxo anal\u00edtico.", target: '[data-tour="sidebar"]', fallbackTarget: '[data-tour="mobile-menu"]' },
+    { chapter: "Dados", title: "Dashboard Executivo", body: modules[0][2], target: '[data-tour="header-view-dashboard"]', view: modules[0][0] },
+    { chapter: "Dados", title: "Importa\u00e7\u00e3o", body: modules[2][2], target: '[data-tour="header-view-import"]', view: modules[2][0] },
+    { chapter: "Dados", title: "Qualidade e Schema", body: modules[3][2], target: '[data-tour="header-view-quality"]', view: modules[3][0] },
+    { chapter: "An\u00e1lises & IA", title: "An\u00e1lises financeiras e ESG", body: "As an\u00e1lises usam os dados dispon\u00edveis e mant\u00eam c\u00e1lculos determin\u00edsticos audit\u00e1veis.", target: '[data-tour="dashboard-workflow"]', view: modules[0][0] },
+    { chapter: "An\u00e1lises & IA", title: "Assistente IA local", body: modules[4][2], target: '[data-tour="header-view-assistant"]', view: modules[4][0] },
+    { chapter: "An\u00e1lises & IA", title: "Resultados Preditivos", body: modules[5][2], target: '[data-tour="header-view-predictive"]', view: modules[5][0] },
+    { chapter: "An\u00e1lises & IA", title: "Simula\u00e7\u00f5es What-If", body: modules[6][2], target: '[data-tour="header-view-simulator"]', view: modules[6][0] },
+    { chapter: "Governan\u00e7a", title: "Valida\u00e7\u00e3o", body: modules[7][2], target: '[data-tour="header-view-validation"]', view: modules[7][0] },
+    { chapter: "Governan\u00e7a", title: "Power BI", body: modules[8][2], target: '[data-tour="header-view-powerbi"]', view: modules[8][0] },
+    { chapter: "Governan\u00e7a", title: "Hist\u00f3rico e Auditoria", body: modules[9][2], target: '[data-tour="header-view-audit"]', view: modules[9][0] },
+    { chapter: "Opera\u00e7\u00e3o", title: "Multiprojeto", body: modules[10][2], target: '[data-tour="header-view-multiproject"]', view: modules[10][0] },
+    { chapter: "Opera\u00e7\u00e3o", title: "Automa\u00e7\u00f5es", body: modules[11][2], target: '[data-tour="header-view-scheduler"]', view: modules[11][0] },
+    { chapter: "Opera\u00e7\u00e3o", title: "Governan\u00e7a e seguran\u00e7a", body: "O processamento permanece local, com teto de 8 GB de RAM e trilha de auditoria.", target: '[data-tour="ram-indicator"]' }
   ];
+
+  const contextualGuides = {
+    "view-dashboard": [
+      { chapter: "Vis\u00e3o Executiva", title: "Painel Executivo", body: "Concentra indicadores financeiros, ESG e status de governan\u00e7a do projeto ativo.", target: '[data-tour="header-view-dashboard"]', view: "view-dashboard" },
+      { chapter: "Vis\u00e3o Executiva", title: "Fluxo de governan\u00e7a", body: "Use os atalhos de etapas para navegar da importa\u00e7\u00e3o at\u00e9 a publica\u00e7\u00e3o no Power BI.", target: '[data-tour="dashboard-workflow"]', view: "view-dashboard" }
+    ],
+    "view-projects": [
+      { chapter: "Projetos & LGPD", title: "Isolamento por projeto", body: "Cada projeto mant\u00e9m seus pr\u00f3prios datasets, an\u00e1lises, laudos e prazo de reten\u00e7\u00e3o.", target: '[data-tour="header-view-projects"]', view: "view-projects" },
+      { chapter: "Projetos & LGPD", title: "Criar novo projeto", body: "Informe nome, setor, moeda e prazo LGPD para iniciar um novo espa\u00e7o isolado.", target: '[data-tour="projects-form"]', view: "view-projects" }
+    ],
+    "view-import": [
+      { chapter: "Importa\u00e7\u00e3o", title: "Ingest\u00e3o segura", body: "Importe dados tabulares com hash SHA-256, chunking de mem\u00f3ria e varredura de PII.", target: '[data-tour="header-view-import"]', view: "view-import" },
+      { chapter: "Importa\u00e7\u00e3o", title: "Bases de refer\u00eancia", body: "Carregue bases sint\u00e9ticas piloto, adversa ou curta para validar cada fluxo do sistema.", target: '[data-tour="import-samples"]', view: "view-import" },
+      { chapter: "Importa\u00e7\u00e3o", title: "Upload CSV ou Excel", body: "Selecione arquivos .csv, .xlsx ou .xls para gerar perfilamento autom\u00e1tico de qualidade.", target: '[data-tour="import-upload"]', view: "view-import" }
+    ],
+    "view-quality": [
+      { chapter: "Qualidade & Schema", title: "Diagn\u00f3stico do dataset", body: "Avalia completude, duplicidades, lacunas temporais e inconsist\u00eancias f\u00edsicas.", target: '[data-tour="header-view-quality"]', view: "view-quality" },
+      { chapter: "Qualidade & Schema", title: "Preserva\u00e7\u00e3o de dados", body: "Valores suspeitos e outliers s\u00e3o sinalizados sem exclus\u00e3o silenciosa de registros.", target: '[data-tour="quality-profile"]', view: "view-quality" },
+      { chapter: "Qualidade & Schema", title: "Mapeamento can\u00f4nico", body: "Associe colunas originais aos indicadores can\u00f4nicos e salve para reaplicar nas an\u00e1lises.", target: '[data-tour="quality-mapping"]', view: "view-quality" }
+    ],
+    "view-assistant": [
+      { chapter: "Assistente IA & ESG", title: "C\u00e1lculo determin\u00edstico", body: "Os indicadores financeiros e emiss\u00f5es de Escopos 1, 2 e 3 s\u00e3o calculados em Python.", target: '[data-tour="header-view-assistant"]', view: "view-assistant" },
+      { chapter: "Assistente IA & ESG", title: "Executar an\u00e1lise ESG", body: "Dispare o motor financeiro/ESG para gerar KPIs e laudo autom\u00e1tico de valida\u00e7\u00e3o.", target: '[data-tour="assistant-financial"]', view: "view-assistant" },
+      { chapter: "Assistente IA & ESG", title: "Chat com IA local", body: "Envie perguntas em linguagem natural; o Ollama local aciona apenas as 6 tools permitidas.", target: '[data-tour="assistant-prompt"]', view: "view-assistant" }
+    ],
+    "view-predictive": [
+      { chapter: "Resultados Preditivos", title: "Previs\u00e3o e backtesting", body: "Usa divis\u00e3o cronol\u00f3gica sem vazamento temporal e compara contra o baseline ing\u00eanuo.", target: '[data-tour="header-view-predictive"]', view: "view-predictive" },
+      { chapter: "Resultados Preditivos", title: "Configurar modelo", body: "Escolha vari\u00e1vel alvo, algoritmo (Ridge ou RandomForest) e horizonte em meses.", target: '[data-tour="predictive-form"]', view: "view-predictive" }
+    ],
+    "view-simulator": [
+      { chapter: "Simulador What-If", title: "Cen\u00e1rios condicionais", body: "Separa claramente hist\u00f3rico, previsto, simulado e impactos observados sem alterar a fonte.", target: '[data-tour="header-view-simulator"]', view: "view-simulator" },
+      { chapter: "Simulador What-If", title: "Par\u00e2metros de sensibilidade", body: "Ajuste custos, energia, combust\u00edvel e reciclagem dentro dos limites validados.", target: '[data-tour="simulator-controls"]', view: "view-simulator" }
+    ],
+    "view-validation": [
+      { chapter: "Valida\u00e7\u00e3o", title: "Port\u00e3o de governan\u00e7a", body: "Classifica an\u00e1lises em APROVADO, APROVADO_COM_RESSALVAS ou REJEITADO.", target: '[data-tour="header-view-validation"]', view: "view-validation" },
+      { chapter: "Valida\u00e7\u00e3o", title: "Auditoria sob demanda", body: "Selecione uma an\u00e1lise executada para reavaliar regras matem\u00e1ticas e ESG.", target: '[data-tour="validation-trigger"]', view: "view-validation" }
+    ],
+    "view-powerbi": [
+      { chapter: "Relat\u00f3rios Power BI", title: "Exporta\u00e7\u00e3o PBIP/PBIR", body: "Compila projeto tabular com medidas DAX, reconcilia\u00e7\u00e3o num\u00e9rica e pacote .zip.", target: '[data-tour="header-view-powerbi"]', view: "view-powerbi" },
+      { chapter: "Relat\u00f3rios Power BI", title: "Compilar relat\u00f3rio", body: "Escolha apenas an\u00e1lises eleg\u00edveis; resultados rejeitados s\u00e3o bloqueados automaticamente.", target: '[data-tour="powerbi-form"]', view: "view-powerbi" }
+    ],
+    "view-audit": [
+      { chapter: "Auditoria & Sistema", title: "Trilha local imut\u00e1vel", body: "Registra opera\u00e7\u00f5es no SQLite local para rastreabilidade completa sem envio externo.", target: '[data-tour="header-view-audit"]', view: "view-audit" },
+      { chapter: "Auditoria & Sistema", title: "Modelo LLM e RAM", body: "Gerencie qwen3.5:4b/9b, descarregue da RAM ociosa e execute benchmark local.", target: '[data-tour="audit-models"]', view: "view-audit" },
+      { chapter: "Auditoria & Sistema", title: "Expurgo LGPD e backup", body: "Execute expurgo por reten\u00e7\u00e3o e crie backups SQLite assinados com HMAC-SHA256.", target: '[data-tour="audit-lgpd"]', view: "view-audit" }
+    ],
+    "view-multiproject": [
+      { chapter: "Multiprojeto", title: "Consolida\u00e7\u00e3o corporativa", body: "Agrega receitas, lucros e emiss\u00f5es apenas dos projetos com dados dispon\u00edveis.", target: '[data-tour="header-view-multiproject"]', view: "view-multiproject" },
+      { chapter: "Multiprojeto", title: "Ranking de ecoefici\u00eancia", body: "Compare intensidade de carbono e conformidade metodol\u00f3gica entre unidades.", target: '[data-tour="multiproject-ranking"]', view: "view-multiproject" }
+    ],
+    "view-scheduler": [
+      { chapter: "Automa\u00e7\u00f5es", title: "Agendador cooperativo", body: "Orquestra conectores, backups e auditorias locais com travas contra sobreposi\u00e7\u00e3o.", target: '[data-tour="header-view-scheduler"]', view: "view-scheduler" },
+      { chapter: "Automa\u00e7\u00f5es", title: "Cadastrar rotina", body: "Defina tipo de tarefa, intervalo em minutos e reten\u00e7\u00e3o para agendar execu\u00e7\u00f5es.", target: '[data-tour="scheduler-form"]', view: "view-scheduler" }
+    ]
+  };
 
   function normalizeState(storage, version = VERSION) {
     let saved = {};
@@ -308,9 +363,28 @@
       introReturnFocus = null;
     }
 
+    function isElementUsable(element) {
+      if (!element || !element.getClientRects().length) return false;
+      const computed = getComputedStyle(element);
+      if (computed.visibility === "hidden" || computed.display === "none") return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < global.innerWidth;
+    }
+
+    function resolveStepTarget(step) {
+      if (!step) return null;
+      const primary = document.querySelector(step.target);
+      if (isElementUsable(primary)) return primary;
+      if (step.fallbackTarget) {
+        const fallback = document.querySelector(step.fallbackTarget);
+        if (isElementUsable(fallback)) return fallback;
+      }
+      return null;
+    }
+
     function startContext(viewId) {
-      const module = modules.find((item) => item[0] === viewId) || modules[0];
-      start([{ chapter: module[1], title: module[1], body: module[2], target: `[data-tour="module-${module[0]}"]`, view: module[0] }]);
+      const steps = contextualGuides[viewId] || contextualGuides["view-dashboard"];
+      start(steps);
     }
 
     function start(steps = generalSteps) {
@@ -353,14 +427,17 @@
         panel.querySelector("#eco-tour-body").textContent = step.body;
         panel.querySelector('[data-action="back"]').disabled = currentStep === 0;
         panel.querySelector('[data-action="next"]').textContent = currentStep === activeSteps.length - 1 ? "Concluir" : "Avan\u00e7ar";
-        const target = document.querySelector(step.target);
-        const visible = target && target.getClientRects().length && getComputedStyle(target).visibility !== "hidden";
+        const target = resolveStepTarget(step);
         const recovery = panel.querySelector(".eco-tour-recovery");
-        if (!visible) {
+        if (!target) {
           showCenteredFallback("Este destaque n\u00e3o est\u00e1 dispon\u00edvel neste momento. Avance ou encerre o tutorial.");
         } else {
           target.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
-          const positioned = positionTarget(target);
+          let positioned = positionTarget(target);
+          if (!positioned) {
+            target.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+            positioned = positionTarget(target);
+          }
           if (!positioned) {
             showCenteredFallback("");
           } else if (recovery) {
@@ -417,8 +494,8 @@
 
     function positionCurrent() {
       if (panel && !panel.hidden && activeSteps[currentStep]) {
-        const target = document.querySelector(activeSteps[currentStep].target);
-        if (!target || !target.getClientRects().length || getComputedStyle(target).visibility === "hidden") {
+        const target = resolveStepTarget(activeSteps[currentStep]);
+        if (!target) {
           showCenteredFallback("Este destaque n\u00e3o est\u00e1 dispon\u00edvel neste momento. Avance ou encerre o tutorial.");
           return;
         }
@@ -436,9 +513,9 @@
       else if (action === "help-close") closeHelp();
       else if (action === "defer") { intro.hidden = true; if (returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true }); returnFocus = null; }
       else if (action === "dismiss") { persist({ introDismissed: true }); intro.hidden = true; if (returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true }); returnFocus = null; }
-      else if (action === "back") { currentStep = Math.max(0, currentStep - 1); persist({ progress: currentStep }); renderCurrent(); }
+      else if (action === "back") { currentStep = Math.max(0, currentStep - 1); if (activeIsGeneral) persist({ progress: currentStep }); renderCurrent(); }
       else if (action === "next" || action === "skip-step") {
-        if (currentStep < activeSteps.length - 1) { currentStep += 1; persist({ progress: currentStep }); renderCurrent(); }
+        if (currentStep < activeSteps.length - 1) { currentStep += 1; if (activeIsGeneral) persist({ progress: currentStep }); renderCurrent(); }
         else { if (activeIsGeneral) persist({ introDismissed: true, completed: true, progress: 0 }); closeTour(); }
       } else if (action === "close") closeTour();
     }
@@ -504,6 +581,7 @@
       setCurrentView: (viewId) => { currentView = viewId; },
       close: closeTour,
       getGeneralSteps: () => generalSteps.map((step) => ({ ...step })),
+      getContextualSteps: (viewId) => (contextualGuides[viewId] || []).map((step) => ({ ...step })),
       getModules: () => modules.map(([id, title, body]) => ({ id, title, body })),
       normalizeState,
       computeTooltipPlacement,

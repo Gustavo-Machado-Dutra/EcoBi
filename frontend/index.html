@@ -168,7 +168,7 @@
       <!-- TOPBAR OPERACIONAL -->
       <header class="topbar" role="banner" data-tour="topbar">
         <div class="topbar-left">
-          <button type="button" id="btn-open-sidebar" class="icon-btn mobile-menu-btn" aria-label="Abrir menu lateral" aria-controls="app-sidebar" aria-expanded="false">
+          <button type="button" id="btn-open-sidebar" class="icon-btn mobile-menu-btn" data-tour="mobile-menu" aria-label="Abrir menu lateral" aria-controls="app-sidebar" aria-expanded="false">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -264,7 +264,7 @@
              TELA 1: DASHBOARD INICIAL (view-dashboard)
              ================================================================ -->
         <section id="view-dashboard" class="view-section active" data-tour="module-view-dashboard" aria-labelledby="heading-dashboard">
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-dashboard">
             <div>
               <span class="eyebrow">VISÃO EXECUTIVA INTEGRADA · SUSTAINABLE TECH</span>
               <h1 id="heading-dashboard" class="view-title">Visão Executiva</h1>
@@ -290,7 +290,7 @@
           </div>
 
           <!-- Atalhos Funcionais do Fluxo Analítico -->
-          <div class="workflow-ribbon" role="region" aria-label="Etapas de governança analítica">
+          <div class="workflow-ribbon" data-tour="dashboard-workflow" role="region" aria-label="Etapas de governança analítica">
             <div class="workflow-ribbon-header">
               <h2 class="section-subtitle">Fluxo de governança</h2>
               <span class="workflow-hint">Selecione uma etapa para abrir o módulo</span>
@@ -567,7 +567,7 @@
              TELA 2: GERENCIAMENTO DE PROJETOS (view-projects)
              ================================================================ -->
         <section id="view-projects" class="view-section" data-tour="module-view-projects" aria-labelledby="heading-projects" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-projects">
             <div>
               <span class="eyebrow">ISOLAMENTO LÓGICO &amp; CICLO DE VIDA LGPD</span>
               <h1 id="heading-projects" class="view-title">Gerenciamento de Projetos Corporativos</h1>
@@ -581,7 +581,7 @@
           <div class="projects-layout">
             <!-- Formulário de Novo Projeto -->
             <article class="surface-panel">
-              <div class="panel-header">
+              <div class="panel-header" data-tour="projects-form">
                 <div>
                   <h2 class="panel-title">Novo Projeto Analítico</h2>
                   <p class="panel-subtitle">Cada projeto mantém datasets, análises, validações e relatórios isolados.</p>
@@ -670,7 +670,7 @@
              TELA 3: IMPORTAÇÃO DE DADOS (view-import)
              ================================================================ -->
         <section id="view-import" class="view-section" data-tour="module-view-import" aria-labelledby="heading-import" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-import">
             <div>
               <span class="eyebrow">INGESTÃO TABULAR COM CHUNKING &amp; PROTEÇÃO PII</span>
               <h1 id="heading-import" class="view-title">Importação de Dados &amp; Bases de Referência</h1>
@@ -680,7 +680,7 @@
 
           <!-- Botões Rápidos Obrigatórios para Bases Sintéticas -->
           <article class="surface-panel sample-loaders-panel">
-            <div class="panel-header">
+            <div class="panel-header" data-tour="import-samples">
               <div>
                 <h2 class="panel-title">Bases Oficiais de Demonstração &amp; Validação</h2>
                 <p class="panel-subtitle">Carregue um dataset diretamente no projeto ativo via <code>POST /api/projects/{id}/datasets/load-sample</code></p>
@@ -734,7 +734,7 @@
               </div>
 
               <form id="form-upload-dataset" class="stack-form">
-                <label for="dataset-file-input" id="upload-dropzone" class="upload-dropzone">
+                <label for="dataset-file-input" id="upload-dropzone" class="upload-dropzone" data-tour="import-upload">
                   <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="17 8 12 3 7 8"></polyline>
@@ -817,7 +817,7 @@
              TELA 4: QUALIDADE DOS DADOS (view-quality)
              ================================================================ -->
         <section id="view-quality" class="view-section" data-tour="module-view-quality" aria-labelledby="heading-quality" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-quality">
             <div>
               <span class="eyebrow">PERFILAMENTO ESTATÍSTICO &amp; SCHEMA CANÔNICO</span>
               <h1 id="heading-quality" class="view-title">Qualidade dos Dados &amp; Mapeamento de Variáveis</h1>
@@ -830,7 +830,7 @@
           </div>
 
           <!-- Banner Obrigatório de Preservação Explícita de Valores Suspeitos -->
-          <div id="quality-preservation-banner" class="alert-banner alert-warning" role="status">
+          <div id="quality-preservation-banner" class="alert-banner alert-warning" data-tour="quality-profile" role="status">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
               <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -882,7 +882,7 @@
           <!-- Mapeamento Canônico de Colunas -->
           <article class="surface-panel">
             <form id="form-canonical-mapping">
-              <div class="panel-header">
+              <div class="panel-header" data-tour="quality-mapping">
                 <div>
                   <h2 class="panel-title">Mapeamento de Colunas para o Schema Canônico EcoBI</h2>
                   <p class="panel-subtitle">Associe as variáveis do dataset aos indicadores determinísticos financeiros e socioambientais (<code>POST /api/projects/{id}/quality</code>).</p>
@@ -940,7 +940,7 @@
              TELA 5: SOLICITAÇÃO DE ANÁLISES POR LINGUAGEM NATURAL & ESG (view-assistant)
              ================================================================ -->
         <section id="view-assistant" class="view-section" data-tour="module-view-assistant" aria-labelledby="heading-assistant" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-assistant">
             <div>
               <span class="eyebrow">CÁLCULO DETERMINÍSTICO PYTHON + ORQUESTRAÇÃO OLLAMA (6 TOOLS)</span>
               <h1 id="heading-assistant" class="view-title">Análise Financeira/ESG &amp; Assistente em Linguagem Natural</h1>
@@ -956,7 +956,7 @@
                   <h2 class="panel-title">Motor Determinístico Financeiro &amp; ESG</h2>
                   <p class="panel-subtitle">Execução direta via <code>POST /api/projects/{id}/analyze/financial-esg</code></p>
                 </div>
-                <button type="button" id="btn-run-financial-esg" class="btn btn-primary">
+                <button type="button" id="btn-run-financial-esg" class="btn btn-primary" data-tour="assistant-financial">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
                   </svg>
@@ -1129,7 +1129,7 @@
               </div>
 
               <!-- Formulário de Envio -->
-              <form id="form-assistant-chat" class="chat-input-bar">
+              <form id="form-assistant-chat" class="chat-input-bar" data-tour="assistant-prompt">
                 <label for="assistant-message-input" class="sr-only">Digite sua solicitação analítica em linguagem natural</label>
                 <input type="text" id="assistant-message-input" placeholder="Pergunte sobre faturamento, Escopos 1/2/3, previsão ou peça uma simulação..." required autocomplete="off">
                 <button type="submit" id="btn-send-assistant" class="btn btn-primary">
@@ -1145,7 +1145,7 @@
              TELA 6: RESULTADOS PREDITIVOS (view-predictive)
              ================================================================ -->
         <section id="view-predictive" class="view-section" data-tour="module-view-predictive" aria-labelledby="heading-predictive" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-predictive">
             <div>
               <span class="eyebrow">SCIKIT-LEARN · SPLIT CRONOLÓGICO &amp; BACKTESTING MULTI-JANELAS</span>
               <h1 id="heading-predictive" class="view-title">Modelagem Preditiva &amp; Comparação com Baseline</h1>
@@ -1155,7 +1155,7 @@
 
           <!-- Configuração do Modelo Preditivo -->
           <article class="surface-panel">
-            <form id="form-predictive" class="predictive-config-form">
+            <form id="form-predictive" class="predictive-config-form" data-tour="predictive-form">
               <div class="form-row-4">
                 <div class="form-field">
                   <label for="pred-target-col">Variável Alvo (Target)</label>
@@ -1315,7 +1315,7 @@
              TELA 7: SIMULADOR FINANCEIRO E SOCIOAMBIENTAL (view-simulator)
              ================================================================ -->
         <section id="view-simulator" class="view-section" data-tour="module-view-simulator" aria-labelledby="heading-simulator" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-simulator">
             <div>
               <span class="eyebrow">ANÁLISE DE SENSIBILIDADE CONDICIONAL (WHAT-IF)</span>
               <h1 id="heading-simulator" class="view-title">Simulador de Impacto Financeiro &amp; Socioambiental</h1>
@@ -1343,7 +1343,7 @@
           <div class="simulator-workspace-grid">
             <!-- Controles Sliders + Inputs Sincronizados -->
             <article class="surface-panel">
-              <div class="panel-header">
+              <div class="panel-header" data-tour="simulator-controls">
                 <div>
                   <h2 class="panel-title">Parâmetros de Simulação (Sliders + Inputs)</h2>
                   <p class="panel-subtitle">Sincronização bidirecional imediata para <code>POST /api/projects/{id}/simulate</code></p>
@@ -1516,7 +1516,7 @@
              TELA 8: CENTRAL DE VALIDAÇÃO (view-validation)
              ================================================================ -->
         <section id="view-validation" class="view-section" data-tour="module-view-validation" aria-labelledby="heading-validation" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-validation">
             <div>
               <span class="eyebrow">MOTOR DE GOVERNANÇA DETERMINÍSTICO · PORTÃO DE PUBLICAÇÃO</span>
               <h1 id="heading-validation" class="view-title">Central de Validação &amp; Conformidade Metodológica</h1>
@@ -1549,7 +1549,7 @@
 
           <!-- Formulário de Disparo Manual de Validação -->
           <article class="surface-panel">
-            <form id="form-trigger-validation" class="inline-action-form">
+            <form id="form-trigger-validation" class="inline-action-form" data-tour="validation-trigger">
               <div class="form-field flex-grow">
                 <label for="validation-analysis-select">Selecionar Análise para Auditoria Forçada (<code>POST /api/projects/{id}/validations</code>)</label>
                 <select id="validation-analysis-select">
@@ -1574,7 +1574,7 @@
              TELA 9: RELATÓRIOS POWER BI (view-powerbi)
              ================================================================ -->
         <section id="view-powerbi" class="view-section" data-tour="module-view-powerbi" aria-labelledby="heading-powerbi" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-powerbi">
             <div>
               <span class="eyebrow">EXPORTAÇÃO NATIVA PBIP / PBIR · MODELO TABULAR &amp; MEDIDAS DAX</span>
               <h1 id="heading-powerbi" class="view-title">Geração de Projetos Power BI Desktop</h1>
@@ -1588,7 +1588,7 @@
           <div class="powerbi-workspace-grid">
             <!-- Seleção de Análises (Com Bloqueio Visual para REJEITADO) -->
             <article class="surface-panel">
-              <div class="panel-header">
+              <div class="panel-header" data-tour="powerbi-form">
                 <div>
                   <h2 class="panel-title">Configurar &amp; Compilar Projeto PBIP/PBIR</h2>
                   <p class="panel-subtitle">Análises com status <code>REJEITADO</code> são bloqueadas pelo portão de governança.</p>
@@ -1675,7 +1675,7 @@
              TELA 10: HISTÓRICO E AUDITORIA (view-audit)
              ================================================================ -->
         <section id="view-audit" class="view-section" data-tour="module-view-audit" aria-labelledby="heading-audit" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-audit">
             <div>
               <span class="eyebrow">RASTREABILIDADE IMUTÁVEL · CONFIGURAÇÃO LLM &amp; EXPURGO LGPD</span>
               <h1 id="heading-audit" class="view-title">Histórico de Auditoria, Memória &amp; Governança LGPD</h1>
@@ -1689,7 +1689,7 @@
           <div class="audit-top-grid">
             <!-- Painel 1: Configuração de Modelo Local Ollama -->
             <article class="surface-panel" id="audit-model-panel">
-              <div class="panel-header">
+              <div class="panel-header" data-tour="audit-models">
                 <div>
                   <h2 class="panel-title">Configuração do Modelo LLM Local</h2>
                   <p class="panel-subtitle"><code>POST /api/settings/model</code> com portão de memória RAM</p>
@@ -1758,7 +1758,7 @@
 
             <!-- Painel 3: Expurgo LGPD e Retenção -->
             <article class="surface-panel" id="audit-lgpd-panel">
-              <div class="panel-header">
+              <div class="panel-header" data-tour="audit-lgpd">
                 <div>
                   <h2 class="panel-title">Ciclo de Vida &amp; Expurgo LGPD</h2>
                   <p class="panel-subtitle"><code>POST /api/system/lgpd-purge</code> (Art. 15 e 16 LGPD)</p>
@@ -1821,7 +1821,7 @@
              11. DASHBOARD COMPARATIVO MULTIPROJETO (FASE 4: ECOBI-22)
              ==================================================================== -->
         <section id="view-multiproject" class="view-section" data-tour="module-view-multiproject" aria-labelledby="heading-multiproject" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-multiproject">
             <div>
               <h1 id="heading-multiproject" class="view-title">Dashboard Corporativo Multiprojeto</h1>
               <p class="view-subtitle">Consolidação executiva de indicadores financeiros e ambientais (ESG), ranking de ecoeficiência e comparativo entre unidades corporativas.</p>
@@ -1870,7 +1870,7 @@
           </div>
 
           <article class="card">
-            <div class="card-header">
+            <div class="card-header" data-tour="multiproject-ranking">
               <h2 class="card-title">Ranking Corporativo de Ecoeficiência</h2>
               <p class="card-subtitle">Classificação de projetos e filiais por intensidade de emissões de carbono e conformidade metodológica.</p>
             </div>
@@ -1902,7 +1902,7 @@
              12. AUTOMAÇÃO OPERACIONAL & AGENDADOR (FASE 4: ECOBI-21)
              ==================================================================== -->
         <section id="view-scheduler" class="view-section" data-tour="module-view-scheduler" aria-labelledby="heading-scheduler" hidden>
-          <div class="view-header">
+          <div class="view-header" data-tour="header-view-scheduler">
             <div>
               <h1 id="heading-scheduler" class="view-title">Automa&ccedil;&otilde;es</h1>
               <p class="view-subtitle">Gerencie rotinas programadas, sincroniza&ccedil;&otilde;es de conectores e backups do ambiente EcoBI.</p>
@@ -1919,7 +1919,7 @@
 
           <div class="dashboard-grid">
             <article class="card">
-              <div class="card-header">
+              <div class="card-header" data-tour="scheduler-form">
                 <h2 class="card-title">Cadastrar Nova Rotina Agendada</h2>
                 <p class="card-subtitle">Defina o tipo de opera&ccedil;&atilde;o e a frequ&ecirc;ncia de execu&ccedil;&atilde;o.</p>
               </div>

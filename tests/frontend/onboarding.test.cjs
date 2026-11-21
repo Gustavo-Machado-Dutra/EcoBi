@@ -27,9 +27,13 @@ test("general guide covers all 18 documented topics and module targets", () => {
   const expectedTitles = JSON.parse("[\"EcoBI Intelligence\",\"Barra de contexto\",\"Projeto ativo\",\"Dataset ativo\",\"Navega\u00e7\u00e3o\",\"Dashboard Executivo\",\"Importa\u00e7\u00e3o\",\"Qualidade e Schema\",\"An\u00e1lises financeiras e ESG\",\"Assistente IA local\",\"Resultados Preditivos\",\"Simula\u00e7\u00f5es What-If\",\"Valida\u00e7\u00e3o\",\"Power BI\",\"Hist\u00f3rico e Auditoria\",\"Multiprojeto\",\"Automa\u00e7\u00f5es\",\"Governan\u00e7a e seguran\u00e7a\"]");
   assert.deepEqual(steps.map((step) => step.title), expectedTitles);
   assert.deepEqual(steps.slice(5, 8).map((step) => step.view), ["view-dashboard", "view-import", "view-quality"]);
-  assert.ok(steps.every((step) => step.body && step.target.startsWith("[data-tour=\"")));
+  assert.ok(steps.every((step) => step.chapter && step.body && step.body.length <= 145 && step.target.startsWith("[data-tour=\"")));
+  assert.ok(steps.every((step) => !step.target.includes("module-view-")));
   const shell = fs.readFileSync("frontend/index.html", "utf8");
-  for (const step of steps) assert.ok(shell.includes(step.target.slice(1, -1)));
+  for (const step of steps) {
+    assert.ok(shell.includes(step.target.slice(1, -1)), `Missing target ${step.target}`);
+    if (step.fallbackTarget) assert.ok(shell.includes(step.fallbackTarget.slice(1, -1)), `Missing fallback ${step.fallbackTarget}`);
+  }
 });
 
 test("contextual guides cover all twelve existing views", () => {
@@ -38,7 +42,17 @@ test("contextual guides cover all twelve existing views", () => {
   assert.equal(new Set(modules.map((module) => module.id)).size, 12);
   assert.ok(modules.every((module) => module.id.startsWith("view-") && module.title && module.body));
   const shell = fs.readFileSync("frontend/index.html", "utf8");
-  for (const module of modules) assert.ok(shell.includes(`data-tour=\"module-${module.id}\"`));
+  for (const module of modules) {
+    assert.ok(shell.includes(`data-tour=\"module-${module.id}\"`));
+    const steps = onboarding.getContextualSteps(module.id);
+    assert.ok(steps.length >= 2, `Expected multi-step guide for ${module.id}`);
+    for (const step of steps) {
+      assert.equal(step.view, module.id);
+      assert.ok(step.chapter && step.title && step.body && step.body.length <= 145);
+      assert.ok(!step.target.includes("module-view-"), `Avoid full-section target ${step.target}`);
+      assert.ok(shell.includes(step.target.slice(1, -1)), `Missing contextual target ${step.target}`);
+    }
+  }
 });
 
 test("stored onboarding preferences are versioned and non-sensitive", () => {
@@ -428,6 +442,10 @@ test("general tour controls navigate only existing views, issue no controller-ow
     assert.equal(panel.hidden, true);
     assert.deepEqual(JSON.parse(stored.get("ecobi.onboarding.v1")), { version: "1.0.0", introDismissed: true, completed: true, progress: 0 });
     onboarding.startContext("view-assistant");
+    click("next");
+    click("back");
+    click("next");
+    click("next");
     click("next");
     assert.deepEqual(JSON.parse(stored.get("ecobi.onboarding.v1")), { version: "1.0.0", introDismissed: true, completed: true, progress: 0 });
   } finally {
