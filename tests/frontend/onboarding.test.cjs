@@ -183,15 +183,14 @@ test("welcome and tour preserve non-modal keyboard navigation while help remains
 });
 
 test("tour spotlight and panel remain within the viewport after resize", () => {
-  const saved = Object.fromEntries(["document", "localStorage", "addEventListener", "removeEventListener", "requestAnimationFrame", "innerWidth", "innerHeight", "matchMedia", "getComputedStyle"].map((key) => [key, Object.getOwnPropertyDescriptor(global, key)]));
+  const saved = Object.fromEntries(["document", "localStorage", "addEventListener", "removeEventListener", "requestAnimationFrame", "innerWidth", "innerHeight", "matchMedia", "getComputedStyle", "setTimeout", "clearTimeout"].map((key) => [key, Object.getOwnPropertyDescriptor(global, key)]));
   const handlers = new Map();
   const document = { activeElement: null };
   let root;
   let panelMeasuredWhileHidden = false;
   let targetAvailable = true;
-  let panelHeight = 110;
+  let panelHeight = 228;
   const focusable = () => ({ focus() { document.activeElement = this; } });
-  const opener = focusable();
   const introButton = focusable();
   const intro = { hidden: true, querySelector() { return introButton; }, querySelectorAll() { return [introButton]; } };
   const recovery = { hidden: true, textContent: "" };
@@ -203,7 +202,10 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
   const panelElements = { ".eco-tour-recovery": recovery, ".eco-tour-progress": progress, "#eco-tour-title": title, "#eco-tour-body": body, '[data-action="back"]': back, '[data-action="next"]': next };
   const panel = {
     hidden: true,
-    style: {},
+    style: {
+      setProperty(name, value) { this[name] = value; },
+      removeProperty(name) { delete this[name]; }
+    },
     dataset: {},
     querySelector(selector) { return panelElements[selector]; },
     querySelectorAll() { return []; },
@@ -212,6 +214,10 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
       return this.hidden ? { width: 0, height: 0 } : { width: 300, height: panelHeight };
     }
   };
+  const backdropAttrs = new Map();
+  const backdrop = { hidden: true, setAttribute(name, value) { backdropAttrs.set(name, value); } };
+  const cutoutAttrs = new Map();
+  const cutoutHole = { setAttribute(name, value) { cutoutAttrs.set(name, value); } };
   const spot = { hidden: true, style: {} };
   const chooser = { hidden: true, querySelector() { return focusable(); }, querySelectorAll() { return []; } };
   let targetRect = { left: 50, top: 80, right: 170, bottom: 110, width: 120, height: 30 };
@@ -220,7 +226,14 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
     getBoundingClientRect() { return targetRect; },
     scrollIntoView() {}
   };
-  const elements = { ".eco-tour-spotlight": spot, ".eco-tour-panel": panel, ".eco-tour-intro": intro, ".eco-tour-chooser": chooser };
+  const elements = {
+    ".eco-tour-backdrop": backdrop,
+    "#eco-tour-cutout-hole": cutoutHole,
+    ".eco-tour-spotlight": spot,
+    ".eco-tour-panel": panel,
+    ".eco-tour-intro": intro,
+    ".eco-tour-chooser": chooser
+  };
   const appShell = { inert: false };
   const rootElement = {
     id: "ecobi-onboarding",
@@ -243,6 +256,8 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
   global.addEventListener = (type, handler) => handlers.set(`global:${type}`, handler);
   global.removeEventListener = () => {};
   global.requestAnimationFrame = (callback) => callback();
+  global.setTimeout = () => 1;
+  global.clearTimeout = () => {};
   global.innerWidth = 390;
   global.innerHeight = 844;
   global.matchMedia = () => ({ matches: false });
@@ -252,28 +267,61 @@ test("tour spotlight and panel remain within the viewport after resize", () => {
     onboarding.init();
     onboarding.startGeneral();
     assert.equal(panelMeasuredWhileHidden, false);
-    assert.equal(panel.style.left, "50px");
-    assert.equal(panel.style.top, "122px");
-    assert.equal(panel.dataset.placement, "below");
-    assert.equal(spot.style.left, "44px");
+    assert.equal(panel.dataset.placement, "bottom");
+    assert.equal(backdrop.hidden, false);
+    assert.equal(spot.hidden, false);
+    assert.equal(cutoutAttrs.get("x"), "44");
+    assert.equal(cutoutAttrs.get("y"), "74");
+    assert.equal(cutoutAttrs.get("width"), "132");
+    assert.equal(cutoutAttrs.get("height"), "42");
+    assert.equal(panel.style.top, "130px");
     assert.equal(document.activeElement, next);
 
-    targetRect = { left: 330, top: 780, right: 400, bottom: 820, width: 70, height: 40 };
+    // Near bottom edge -> switches to top without overlapping spotlight
+    targetRect = { left: 310, top: 760, right: 380, bottom: 800, width: 70, height: 40 };
     handlers.get("global:resize")();
-    assert.equal(panel.style.left, "78px");
-    assert.equal(panel.style.top, "658px");
-    assert.equal(spot.style.left, "324px");
-    assert.equal(spot.style.width, "66px");
-    assert.equal(spot.style.height, "52px");
+    assert.equal(panel.dataset.placement, "top");
+    const topPos = Number.parseInt(panel.style.top, 10);
+    const leftPos = Number.parseInt(panel.style.left, 10);
+    assert.equal(
+      onboarding.rectsIntersect(
+        { left: leftPos, top: topPos, right: leftPos + 300, bottom: topPos + panelHeight },
+        { left: 304, top: 754, right: 386, bottom: 806 }
+      ),
+      false
+    );
 
-    global.innerHeight = 220;
-    panelHeight = 180;
-    targetRect = { left: 0, top: 40, right: 70, bottom: 70, width: 70, height: 30 };
+    // Tall sidebar on desktop -> places tooltip to the right without overlapping
+    global.innerWidth = 1280;
+    global.innerHeight = 800;
+    targetRect = { left: 0, top: 0, right: 260, bottom: 800, width: 260, height: 800 };
     handlers.get("global:resize")();
-    assert.equal(panel.style.left, "12px");
-    assert.equal(panel.style.top, "12px");
+    assert.equal(panel.dataset.placement, "right");
+    assert.ok(Number.parseInt(panel.style.left, 10) >= 266 + 14);
+
+    // Tall target on right edge -> places tooltip to the left without overlapping
+    targetRect = { left: 960, top: 60, right: 1260, bottom: 760, width: 300, height: 700 };
+    handlers.get("global:resize")();
+    assert.equal(panel.dataset.placement, "left");
+    assert.ok(Number.parseInt(panel.style.left, 10) + 300 <= 954 - 14);
+
+    // Viewport too tight to avoid overlap -> centered fallback hides spotlight instead of overlapping
+    global.innerWidth = 390;
+    global.innerHeight = 220;
+    panelHeight = 200;
+    targetRect = { left: 0, top: 40, right: 390, bottom: 180, width: 390, height: 140 };
+    handlers.get("global:resize")();
+    assert.equal(panel.dataset.placement, "center");
+    assert.equal(spot.hidden, true);
+
+    // CSS contract: no vertical scrollbar, fixed height, no 9999px shadow dimming spotlight, single-row footer
     const styles = fs.readFileSync("frontend/styles.css", "utf8");
-    assert.match(styles, /\.eco-tour-panel \{ max-height: calc\(100vh - 24px\); overflow-y: auto; \}/);
+    assert.doesNotMatch(styles, /\.eco-tour-panel\s*\{[^}]*overflow-y:\s*auto/);
+    assert.doesNotMatch(styles, /\.eco-tour-panel\s*\{[^}]*9999px/);
+    assert.doesNotMatch(styles, /\.eco-tour-spotlight\s*\{[^}]*9999px/);
+    assert.match(styles, /\.eco-tour-backdrop-fill\s*\{[^}]*fill:/);
+    assert.match(styles, /\.eco-tour-panel\s*\{[^}]*height:\s*228px/);
+    assert.match(styles, /\.eco-tour-actions\s*\{[^}]*flex-wrap:\s*nowrap/);
 
     targetAvailable = false;
     onboarding.startContext("view-dashboard");
